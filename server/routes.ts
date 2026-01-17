@@ -81,5 +81,42 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // Quick Add Route for Bookmarklet
+  app.get("/api/videos/quick-add", isAuthenticated, async (req, res) => {
+    const { url, title } = req.query;
+    if (!url) return res.status(400).send("URL is required");
+
+    // Basic platform detection
+    let platform = "other";
+    const urlStr = String(url).toLowerCase();
+    if (urlStr.includes("youtube.com") || urlStr.includes("youtu.be")) platform = "youtube";
+    else if (urlStr.includes("tiktok.com")) platform = "tiktok";
+    else if (urlStr.includes("instagram.com")) platform = "instagram";
+
+    try {
+      // @ts-ignore
+      const userId = req.user!.claims.sub;
+      await storage.createVideo(userId, {
+        url: String(url),
+        title: title ? String(title) : "Quick Added Video",
+        platform,
+        isFavorite: false,
+      });
+
+      res.send(`
+        <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #0f172a; color: white;">
+          <div style="text-align: center;">
+            <div style="font-size: 40px; margin-bottom: 10px;">✅</div>
+            <h2>¡Agregado a VidStack!</h2>
+            <p>Ya puedes cerrar esta ventana.</p>
+            <script>setTimeout(() => window.close(), 2000);</script>
+          </div>
+        </body>
+      `);
+    } catch (err) {
+      res.status(500).send("Error adding video");
+    }
+  });
+
   return httpServer;
 }
