@@ -1,16 +1,85 @@
 import type { Express } from "express";
-import { createServer, type Server } from "http";
+import type { Server } from "http";
 import { storage } from "./storage";
+import { api } from "@shared/routes";
+import { z } from "zod";
+import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
+import { isAuthenticated } from "./replit_integrations/auth";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // put application routes here
-  // prefix all routes with /api
+  // Setup Auth FIRST
+  await setupAuth(app);
+  registerAuthRoutes(app);
 
-  // use storage to perform CRUD operations on the storage interface
-  // e.g. storage.insertUser(user) or storage.getUserByUsername(username)
+  // Video Routes - Protected by isAuthenticated
+  app.get(api.videos.list.path, isAuthenticated, async (req, res) => {
+    // @ts-ignore - user is added by auth middleware
+    const userId = req.user!.claims.sub;
+    const videos = await storage.getVideos(userId);
+    res.json(videos);
+  });
+
+  app.get(api.videos.get.path, isAuthenticated, async (req, res) => {
+    const video = await storage.getVideo(Number(req.params.id));
+    if (!video) {
+      return res.status(404).json({ message: 'Video not found' });
+    }
+    // Check ownership
+    // @ts-ignore
+    if (video.userId !== req.user!.claims.sub) {
+        return res.status(404).json({ message: 'Video not found' });
+    }
+    res.json(video);
+  });
+
+  app.post(api.videos.create.path, isAuthenticated, async (req, res) => {
+    try {
+      const input = api.videos.create.input.parse(req.body);
+      // @ts-ignore
+      const userId = req.user!.claims.sub;
+      const video = await storage.createVideo(userId, input);
+      res.status(201).json(video);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      throw err;
+    }
+  });
+
+  app.patch(api.videos.update.path, isAuthenticated, async (req, res) => {
+    try {
+      const input = api.videos.update.input.parse(req.body);
+       // @ts-ignore
+      const userId = req.user!.claims.sub;
+      const video = await storage.updateVideo(Number(req.params.id), userId, input);
+      if (!video) {
+        return res.status(404).json({ message: 'Video not found' });
+      }
+      res.json(video);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      throw err;
+    }
+  });
+
+  app.delete(api.videos.delete.path, isAuthenticated, async (req, res) => {
+     // @ts-ignore
+    const userId = req.user!.claims.sub;
+    await storage.deleteVideo(Number(req.params.id), userId);
+    res.status(204).send();
+  });
 
   return httpServer;
 }
