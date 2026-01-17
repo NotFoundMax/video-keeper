@@ -118,5 +118,12 @@ export async function registerRoutes(
     }
   });
 
+  // Dashboard route to show bookmarklet instructions
+  app.get("/api/videos/bookmarklet-code", isAuthenticated, (req, res) => {
+    const appUrl = `${req.protocol}://${req.get('host')}`;
+    const code = `javascript:(function(){const appUrl='${appUrl}';const videoUrl=encodeURIComponent(window.location.href);const videoTitle=encodeURIComponent(document.title);const finalUrl=appUrl+'/api/videos/quick-add?url='+videoUrl+'&title='+videoTitle;window.open(finalUrl,'_blank','width=450,height=350,location=no,menubar=no,status=no,toolbar=no');})();`;
+    res.json({ code });
+  });
+
   return httpServer;
 }
