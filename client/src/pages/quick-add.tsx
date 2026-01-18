@@ -89,9 +89,20 @@ export default function QuickAdd() {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 p-4 text-white text-center space-y-4">
-        <p>Por favor, inicia sesión para guardar videos.</p>
-        <Button onClick={() => window.opener ? window.opener.focus() : window.open('/auth', '_blank')}>Ir al Login</Button>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 p-4 text-white text-center space-y-6">
+        <div className="w-16 h-16 rounded-full bg-amber-500/20 flex items-center justify-center mb-2">
+          <Loader2 className="w-8 h-8 text-amber-500 animate-pulse" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-xl font-bold">Sesión requerida</h2>
+          <p className="text-zinc-400 max-w-xs">Debes iniciar sesión para poder guardar videos desde el menú compartir.</p>
+        </div>
+        <Button
+          className="w-full max-w-xs bg-primary hover:bg-primary/90"
+          onClick={() => setLocation(`/auth?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`)}
+        >
+          Iniciar Sesión
+        </Button>
       </div>
     );
   }

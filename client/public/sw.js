@@ -34,18 +34,23 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET requests and external URLs (except maybe thumbnails)
+  // ONLY handle http and https requests
+  if (!url.protocol.startsWith('http')) return;
+
+  // Skip non-GET requests
   if (request.method !== 'GET') return;
 
-  // For API calls, try Network First, fallback to cached API response
+  // For API calls, try Network First
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const clonedResponse = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, clonedResponse);
-          });
+          if (response.ok) {
+            const clonedResponse = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, clonedResponse);
+            });
+          }
           return response;
         })
         .catch(() => caches.match(request))
@@ -53,14 +58,19 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For static assets, try Cache First
+  // For static assets and navigation, try Cache First
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       if (cachedResponse) return cachedResponse;
-      
+
+      // For navigation requests (SPA routing), return index.html if not in cache
+      if (request.mode === 'navigate') {
+        return caches.match('/index.html');
+      }
+
       return fetch(request).then((response) => {
-        // Cache new static assets
-        if (response.ok) {
+        // Cache new static assets if they are from our own origin or common CDNs
+        if (response.ok && (url.origin === self.location.origin || url.hostname.includes('fonts.googleapis.com') || url.hostname.includes('fonts.gstatic.com'))) {
           const clonedResponse = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(request, clonedResponse);

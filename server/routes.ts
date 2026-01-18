@@ -48,18 +48,20 @@ export async function registerRoutes(
 
       // Try to fetch metadata for a better experience
       let metadata = { title: title || "Video Guardado", thumbnail: "" };
+      
       try {
-        const urlStr = resolvedUrl.toLowerCase();
+        const urlStrResolved = resolvedUrl.toLowerCase();
         let oembedUrl = "";
-        if (urlStr.includes("youtube.com") || urlStr.includes("youtu.be")) {
+        if (urlStrResolved.includes("youtube.com") || urlStrResolved.includes("youtu.be")) {
           oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(resolvedUrl)}&format=json`;
-        } else if (urlStr.includes("tiktok.com")) {
+        } else if (urlStrResolved.includes("tiktok.com")) {
           oembedUrl = `https://www.tiktok.com/oembed?url=${encodeURIComponent(resolvedUrl)}`;
-        } else if (urlStr.includes("vimeo.com")) {
+        } else if (urlStrResolved.includes("vimeo.com")) {
           oembedUrl = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(resolvedUrl)}`;
         }
 
         if (oembedUrl) {
+          console.log("Fetching oEmbed:", oembedUrl);
           const response = await fetch(oembedUrl, {
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -69,26 +71,32 @@ export async function registerRoutes(
             const data = await response.json() as any;
             metadata.title = data.title || metadata.title;
             metadata.thumbnail = data.thumbnail_url || "";
+            console.log("oEmbed Success:", { title: metadata.title, thumb: !!metadata.thumbnail });
+          } else {
+            console.log("oEmbed Failed with status:", response.status);
           }
         }
         
-        // Fallback for YouTube thumbnails
-        if (urlStr.includes("youtube.com") && !metadata.thumbnail) {
-          const videoId = resolvedUrl.includes("watch?v=") 
-            ? new URL(resolvedUrl).searchParams.get("v")
-            : resolvedUrl.split("/").pop();
+        // Fallback for YouTube thumbnails if oEmbed fails or doesn't return one
+        if (platform === "youtube" && !metadata.thumbnail) {
+          const ytMatch = resolvedUrl.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+          const videoId = ytMatch ? ytMatch[1] : null;
           if (videoId) {
             metadata.thumbnail = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+            console.log("YouTube Fallback Thumbnail:", metadata.thumbnail);
           }
         }
       } catch (e) {
         console.log("Metadata fetch failed for bookmarklet:", e);
       }
 
+      console.log("Metadata to save:", metadata);
+      console.log("Saving video for user:", userId, "URL:", resolvedUrl);
+      
       await storage.createVideo(userId, {
         url: resolvedUrl,
         title: metadata.title,
-        thumbnailUrl: metadata.thumbnail,
+        thumbnailUrl: metadata.thumbnail || null,
         platform,
         isFavorite: false,
         folderId: null,
@@ -96,11 +104,26 @@ export async function registerRoutes(
 
       return res.send(`
         <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #0f172a; color: white; text-align: center; padding: 20px;">
-          <div>
-            <div style="font-size: 40px; margin-bottom: 20px;">✅</div>
-            <h2 style="color: #4ade80; margin-bottom: 10px;">¡Guardado con éxito!</h2>
-            <p style="color: #94a3b8;">El video se ha añadido a tu colección.</p>
-            <script>setTimeout(() => window.close(), 2000);</script>
+          <div style="max-width: 300px;">
+            <div style="font-size: 50px; margin-bottom: 20px; animation: scaleIn 0.5s ease-out;">✅</div>
+            <h2 style="color: #4ade80; margin-bottom: 10px; font-size: 24px;">¡Guardado!</h2>
+            <p style="color: #94a3b8; line-height: 1.5;">"${metadata.title.slice(0, 50)}${metadata.title.length > 50 ? '...' : ''}" se ha añadido a tu colección.</p>
+            <style>
+              @keyframes scaleIn {
+                0% { transform: scale(0); }
+                80% { transform: scale(1.2); }
+                100% { transform: scale(1); }
+              }
+            </style>
+            <script>
+              setTimeout(() => {
+                if (window.opener) {
+                  window.close();
+                } else {
+                  window.location.href = '/';
+                }
+              }, 2500);
+            </script>
           </div>
         </body>
       `);
@@ -111,7 +134,7 @@ export async function registerRoutes(
           <div>
             <div style="font-size: 40px; margin-bottom: 20px;">❌</div>
             <h2 style="color: #f87171; margin-bottom: 10px;">Error al guardar</h2>
-            <p style="color: #94a3b8;">No pudimos guardar el video. Es posible que ya exista.</p>
+            <p style="color: #94a3b8;">No pudimos guardar el video. ${err instanceof Error ? err.message : ""}</p>
             <button onclick="window.close()" style="margin-top: 20px; background: #334155; color: white; border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer;">Cerrar</button>
           </div>
         </body>
@@ -295,7 +318,11 @@ export async function registerRoutes(
         else if (platform === "vimeo") oembedUrl = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(resolvedUrl)}`;
 
         if (oembedUrl) {
-          const response = await fetch(oembedUrl);
+          const response = await fetch(oembedUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+          });
           if (response.ok) {
             const data = await response.json() as any;
             metadata.title = data.title || metadata.title;
@@ -303,7 +330,18 @@ export async function registerRoutes(
             metadata.authorName = data.author_name || "";
           }
         }
-      } catch (e) {}
+
+        // Fallback for YouTube thumbnails
+        if (platform === "youtube" && !metadata.thumbnail) {
+          const ytMatch = resolvedUrl.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+          const videoId = ytMatch ? ytMatch[1] : null;
+          if (videoId) {
+            metadata.thumbnail = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+          }
+        }
+      } catch (e) {
+        console.error("Metadata extraction error:", e);
+      }
       res.json(metadata);
     } catch (err) {
       res.status(400).json({ message: "Invalid URL" });

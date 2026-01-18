@@ -16,7 +16,9 @@ export default function AuthPage() {
   const [isPending, setIsPending] = useState(false);
 
   if (user) {
-    setLocation("/");
+    const params = new URLSearchParams(window.location.search);
+    const redirect = params.get("redirect") || "/";
+    setLocation(redirect);
     return null;
   }
 
@@ -34,7 +36,9 @@ export default function AuthPage() {
       });
 
       if (res.ok) {
-        window.location.href = "/";
+        const params = new URLSearchParams(window.location.search);
+        const redirect = params.get("redirect") || "/";
+        window.location.href = redirect;
       } else {
         toast({
           variant: "destructive",
@@ -67,7 +71,9 @@ export default function AuthPage() {
       });
 
       if (res.ok) {
-        window.location.href = "/";
+        const params = new URLSearchParams(window.location.search);
+        const redirect = params.get("redirect") || "/";
+        window.location.href = redirect;
       } else {
         const text = await res.text();
         toast({

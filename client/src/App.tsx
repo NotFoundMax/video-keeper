@@ -13,6 +13,8 @@ import Profile from "@/pages/profile";
 import Landing from "@/pages/landing";
 import AuthPage from "@/pages/auth-page";
 import FoldersPage from "@/pages/folders";
+import QuickAdd from "@/pages/quick-add";
+
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, isLoading } = useAuth();
@@ -41,6 +43,7 @@ function Router() {
       <Route path="/folders" component={() => <ProtectedRoute component={FoldersPage} />} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/landing" component={Landing} />
+      <Route path="/quick-add" component={QuickAdd} />
       <Route component={NotFound} />
     </Switch>
   );
