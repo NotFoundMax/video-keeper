@@ -1,4 +1,5 @@
 import { useAuth } from "@/hooks/use-auth";
+import { useQuery } from "@tanstack/react-query";
 import { LayoutShell } from "@/components/layout-shell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -10,11 +11,11 @@ export default function Profile() {
 
   if (!user) return null;
 
-  // Force localhost for better compatibility with Chrome's Private Network Access
-  const origin = window.location.origin.replace('127.0.0.1', 'localhost');
+  const { data: bookmarkletData } = useQuery<{ code: string }>({
+    queryKey: ["/api/videos/bookmarklet-code"],
+  });
 
-  // Updated to use the new conflict-free route and robust window.open
-  const bookmarkletCode = `javascript:(function(){var u=window.location.href;var t=document.title;var url='${origin}/bookmarklet/add?url='+encodeURIComponent(u)+'&title='+encodeURIComponent(t);var w=window.open(url,'vidstack_add','width=450,height=550');if(!w)location.href=url;})();`;
+  const bookmarkletCode = bookmarkletData?.code ?? "";
 
   return (
     <LayoutShell>

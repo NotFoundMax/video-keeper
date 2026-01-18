@@ -23,21 +23,20 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
-// Fix for Bookmarklet ERR_FAILED (Private Network Access)
+// CORS and Private Network Access headers for Bookmarklet
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
-  // Always set this header to help with Private Network Access
   res.setHeader('Access-Control-Allow-Private-Network', 'true');
   
-  // Handle preflight requests
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
   }
   next();
 });
+
+
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -72,6 +71,22 @@ app.use((req, res, next) => {
   });
 
   next();
+});
+
+// CRITICAL: Bookmarklet route registered IMMEDIATELY, before ANY async operations
+// This ensures absolute priority over Vite and all other middlewares
+app.get("/bookmarklet/add", (req, res) => {
+  const { url, title } = req.query;
+  console.log(">>> BOOKMARKLET HIT:", { url, title });
+  
+  if (!url) {
+    return res.status(400).send("URL requerida");
+  }
+  
+  // Direct redirect to quick-add
+  const redirectUrl = `/quick-add?url=${encodeURIComponent(url as string)}&title=${encodeURIComponent((title as string) || '')}&source=bookmarklet`;
+  console.log(">>> Redirecting to:", redirectUrl);
+  return res.redirect(redirectUrl);
 });
 
 (async () => {

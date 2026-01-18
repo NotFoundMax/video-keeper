@@ -1,4 +1,4 @@
-const CACHE_NAME = 'video-keeper-v1';
+const CACHE_NAME = 'video-keeper-v3-final';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -39,6 +39,11 @@ self.addEventListener('fetch', (event) => {
 
   // Skip non-GET requests
   if (request.method !== 'GET') return;
+
+  // CRITICAL: Skip /bookmarklet/ routes - they need to handle redirects directly
+  if (url.pathname.startsWith('/bookmarklet/')) {
+    return; // Let the network handle it directly, don't intercept
+  }
 
   // For API calls, try Network First
   if (url.pathname.startsWith('/api/')) {

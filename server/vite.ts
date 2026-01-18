@@ -39,6 +39,11 @@ export async function setupVite(server: Server, app: Express) {
   app.use("/{*path}", async (req, res, next) => {
     const url = req.originalUrl;
 
+    // Skip server-handled routes - let them be processed by Express routes instead
+    if (url.startsWith('/bookmarklet/')) {
+      return next();
+    }
+
     try {
       const clientTemplate = path.resolve(
         import.meta.dirname,
