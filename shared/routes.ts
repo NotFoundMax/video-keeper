@@ -25,6 +25,7 @@ export const api = {
       input: z.object({
         search: z.string().optional(),
         platform: z.string().optional(),
+        category: z.string().optional(),
       }).optional(),
       responses: {
         200: z.array(z.custom<typeof videos.$inferSelect>()),
@@ -66,6 +67,23 @@ export const api = {
       responses: {
         204: z.void(),
         404: errorSchemas.notFound,
+        401: errorSchemas.unauthorized,
+      },
+    },
+    metadata: {
+      method: 'POST' as const,
+      path: '/api/videos/metadata',
+      input: z.object({
+        url: z.string().url(),
+      }),
+      responses: {
+        200: z.object({
+          title: z.string(),
+          thumbnail: z.string().optional(),
+          authorName: z.string().optional(),
+          platform: z.string(),
+        }),
+        400: errorSchemas.validation,
         401: errorSchemas.unauthorized,
       },
     },

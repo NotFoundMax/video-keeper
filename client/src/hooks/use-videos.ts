@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, buildUrl, type CreateVideoRequest, type UpdateVideoRequest } from "@shared/routes";
+import { api, buildUrl } from "@shared/routes";
+import { type CreateVideoRequest, type UpdateVideoRequest } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -7,7 +8,7 @@ import { apiRequest } from "@/lib/queryClient";
 // HOOKS
 // ============================================
 
-export function useVideos(filters?: { search?: string; platform?: string }) {
+export function useVideos(filters?: { search?: string; platform?: string; favorite?: string; category?: string }) {
   const queryKey = [api.videos.list.path, filters];
   return useQuery({
     queryKey,
@@ -16,6 +17,8 @@ export function useVideos(filters?: { search?: string; platform?: string }) {
       const params = new URLSearchParams();
       if (filters?.search) params.append("search", filters.search);
       if (filters?.platform && filters.platform !== "all") params.append("platform", filters.platform);
+      if (filters?.favorite) params.append("favorite", filters.favorite);
+      if (filters?.category && filters.category !== "all") params.append("category", filters.category);
       
       const url = `${api.videos.list.path}?${params.toString()}`;
       const res = await fetch(url, { credentials: "include" });
@@ -147,6 +150,24 @@ export function useDeleteVideo() {
         description: error.message || "Failed to delete video", 
         variant: "destructive" 
       });
+    },
+  });
+}
+
+export function useVideoMetadata() {
+  return useMutation({
+    mutationFn: async (url: string) => {
+      const res = await fetch(api.videos.metadata.path, {
+        method: api.videos.metadata.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error("Could not fetch metadata");
+      }
+      return api.videos.metadata.responses[200].parse(await res.json());
     },
   });
 }

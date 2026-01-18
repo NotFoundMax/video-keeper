@@ -3,22 +3,27 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
-import { isAuthenticated } from "./replit_integrations/auth";
+import { setupAuth, isAuthenticated } from "./auth";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
   // Setup Auth FIRST
-  await setupAuth(app);
-  registerAuthRoutes(app);
+  setupAuth(app);
 
   // Video Routes - Protected by isAuthenticated
   app.get(api.videos.list.path, isAuthenticated, async (req, res) => {
-    // @ts-ignore - user is added by auth middleware
-    const userId = req.user!.claims.sub;
-    const videos = await storage.getVideos(userId);
+    // @ts-ignore
+    const userId = req.user!.id;
+    const { search, platform, favorite, category } = req.query;
+    
+    const videos = await storage.getVideos(userId, {
+      search: search as string,
+      platform: platform as string,
+      category: category as string,
+      isFavorite: favorite === 'true' ? true : undefined
+    });
     res.json(videos);
   });
 
@@ -29,7 +34,7 @@ export async function registerRoutes(
     }
     // Check ownership
     // @ts-ignore
-    if (video.userId !== req.user!.claims.sub) {
+    if (video.userId !== req.user!.id) {
         return res.status(404).json({ message: 'Video not found' });
     }
     res.json(video);
@@ -39,7 +44,36 @@ export async function registerRoutes(
     try {
       const input = api.videos.create.input.parse(req.body);
       // @ts-ignore
-      const userId = req.user!.claims.sub;
+      const userId = req.user!.id;
+
+      // Handle TikTok short URLs (resolve redirection to get video ID)
+      if (input.url.includes("vm.tiktok.com") || 
+          input.url.includes("vt.tiktok.com") || 
+          input.url.includes("tiktok.com/t/")) {
+        try {
+           const controller = new AbortController();
+           const id = setTimeout(() => controller.abort(), 8000);
+           const response = await fetch(input.url, { 
+             method: 'GET', 
+             redirect: 'follow',
+             signal: controller.signal,
+             headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
+             }
+           });
+           clearTimeout(id);
+           
+           if (response.url && response.url !== input.url) {
+             console.log("Resolved TikTok URL:", input.url, "->", response.url);
+             input.url = response.url;
+             input.platform = 'tiktok';
+           }
+        } catch (e) {
+          console.error("Error resolving TikTok short URL:", e);
+        }
+      }
+
       const video = await storage.createVideo(userId, input);
       res.status(201).json(video);
     } catch (err) {
@@ -56,8 +90,9 @@ export async function registerRoutes(
   app.patch(api.videos.update.path, isAuthenticated, async (req, res) => {
     try {
       const input = api.videos.update.input.parse(req.body);
+      console.log("Updating video:", req.params.id, "Preview input:", req.body, "Parsed:", input);
        // @ts-ignore
-      const userId = req.user!.claims.sub;
+      const userId = req.user!.id;
       const video = await storage.updateVideo(Number(req.params.id), userId, input);
       if (!video) {
         return res.status(404).json({ message: 'Video not found' });
@@ -76,9 +111,63 @@ export async function registerRoutes(
 
   app.delete(api.videos.delete.path, isAuthenticated, async (req, res) => {
      // @ts-ignore
-    const userId = req.user!.claims.sub;
+    const userId = req.user!.id;
     await storage.deleteVideo(Number(req.params.id), userId);
     res.status(204).send();
+  });
+  
+  app.post(api.videos.metadata.path, isAuthenticated, async (req, res) => {
+    try {
+      const { url } = api.videos.metadata.input.parse(req.body);
+      let platform = "other";
+      const urlStr = url.toLowerCase();
+      
+      if (urlStr.includes("youtube.com") || urlStr.includes("youtu.be")) platform = "youtube";
+      else if (urlStr.includes("tiktok.com")) platform = "tiktok";
+      else if (urlStr.includes("instagram.com")) platform = "instagram";
+      else if (urlStr.includes("vimeo.com")) platform = "vimeo";
+
+      let metadata = {
+        title: "Video",
+        thumbnail: "",
+        authorName: "",
+        platform
+      };
+
+      try {
+        let oembedUrl = "";
+        if (platform === "youtube") {
+          oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+        } else if (platform === "tiktok") {
+          oembedUrl = `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`;
+        } else if (platform === "vimeo") {
+          oembedUrl = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(url)}`;
+        }
+
+        if (oembedUrl) {
+          const response = await fetch(oembedUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+          });
+          if (response.ok) {
+            const data = await response.json() as any;
+            metadata.title = data.title || metadata.title;
+            metadata.thumbnail = data.thumbnail_url || "";
+            metadata.authorName = data.author_name || "";
+          }
+        }
+      } catch (e) {
+        console.error("Metadata fetch error:", e);
+      }
+
+      res.json(metadata);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid URL" });
+      }
+      res.status(500).json({ message: "Internal server error" });
+    }
   });
 
   // Quick Add Route for Bookmarklet
@@ -95,7 +184,7 @@ export async function registerRoutes(
 
     try {
       // @ts-ignore
-      const userId = req.user!.claims.sub;
+      const userId = req.user!.id;
       await storage.createVideo(userId, {
         url: String(url),
         title: title ? String(title) : "Quick Added Video",

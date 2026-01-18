@@ -11,6 +11,8 @@ import Dashboard from "@/pages/dashboard";
 import AddVideo from "@/pages/add-video";
 import Profile from "@/pages/profile";
 import Landing from "@/pages/landing";
+import AuthPage from "@/pages/auth-page";
+import QuickAdd from "@/pages/quick-add";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, isLoading } = useAuth();
@@ -24,8 +26,7 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   }
 
   if (!user) {
-    // Redirect handled by Landing page logic usually, but here we render landing if no user
-    return <Landing />;
+    return <AuthPage />;
   }
 
   return <Component />;
@@ -37,6 +38,8 @@ function Router() {
       <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
       <Route path="/add" component={() => <ProtectedRoute component={AddVideo} />} />
       <Route path="/profile" component={() => <ProtectedRoute component={Profile} />} />
+      <Route path="/quick-add" component={() => <ProtectedRoute component={QuickAdd} />} />
+      <Route path="/auth" component={AuthPage} />
       <Route path="/landing" component={Landing} />
       <Route component={NotFound} />
     </Switch>

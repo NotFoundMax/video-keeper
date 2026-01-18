@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { useCreateVideo } from "@/hooks/use-videos";
+import { useCreateVideo, useVideoMetadata } from "@/hooks/use-videos";
 import { LayoutShell } from "@/components/layout-shell";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,30 +12,73 @@ import { Loader2, Link as LinkIcon, AlertCircle, CheckCircle2 } from "lucide-rea
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import ReactPlayer from "react-player";
 
+const Player = ReactPlayer as any;
+
+// Helper to format URLs for best compatibility
+const getEmbedUrl = (url: string) => {
+  try {
+    if (url.includes("youtube.com/shorts/")) {
+      return url.replace("youtube.com/shorts/", "youtube.com/watch?v=");
+    }
+    return url;
+  } catch (e) {
+    return url;
+  }
+};
+
 export default function AddVideo() {
   const [, setLocation] = useLocation();
   const { mutate: createVideo, isPending } = useCreateVideo();
+  const { mutate: fetchMetadata, isPending: isFetchingMetadata } = useVideoMetadata();
   
   const [formData, setFormData] = useState({
     url: "",
     title: "",
     platform: "other",
+    thumbnailUrl: "" as string | undefined,
+    category: "general",
   });
   const [previewError, setPreviewError] = useState(false);
 
-  // Auto-detect platform and fetch title (mock title fetch for now)
+  // Handle incoming shared content
   useEffect(() => {
-    if (!formData.url) return;
+    const params = new URLSearchParams(window.location.search);
+    const sharedUrl = params.get("url");
+    const sharedText = params.get("text");
+    const sharedTitle = params.get("title");
 
-    let detectedPlatform = "other";
-    if (formData.url.includes("youtube.com") || formData.url.includes("youtu.be")) detectedPlatform = "youtube";
-    else if (formData.url.includes("tiktok.com")) detectedPlatform = "tiktok";
-    else if (formData.url.includes("instagram.com")) detectedPlatform = "instagram";
-    else if (formData.url.includes("vimeo.com")) detectedPlatform = "vimeo";
+    // Some apps put the URL in the 'text' field
+    const urlToUse = sharedUrl || (sharedText?.startsWith("http") ? sharedText : "");
+    const titleToUse = sharedTitle || (!sharedText?.startsWith("http") ? sharedText : "");
 
-    setFormData(prev => ({ ...prev, platform: detectedPlatform }));
-    setPreviewError(false);
-  }, [formData.url]);
+    if (urlToUse) {
+      setFormData(prev => ({
+        ...prev,
+        url: urlToUse,
+        title: titleToUse || prev.title
+      }));
+    }
+  }, []);
+
+  // Auto-detect platform and fetch metadata
+  useEffect(() => {
+    if (!formData.url || !formData.url.startsWith("http")) return;
+
+    const timer = setTimeout(() => {
+      fetchMetadata(formData.url, {
+        onSuccess: (data: any) => {
+          setFormData(prev => ({
+            ...prev,
+            title: prev.title || data.title,
+            platform: data.platform,
+            thumbnailUrl: data.thumbnail
+          }));
+        }
+      });
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [formData.url, fetchMetadata]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,8 +115,8 @@ export default function AddVideo() {
 
               {formData.url && !previewError && (
                 <div className="rounded-xl overflow-hidden border border-border bg-black/50 aspect-video relative group">
-                  <ReactPlayer
-                    url={formData.url}
+                  <Player
+                    url={getEmbedUrl(formData.url)}
                     width="100%"
                     height="100%"
                     controls={false}
@@ -98,7 +141,15 @@ export default function AddVideo() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="title">Title</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="title">Title</Label>
+                    {isFetchingMetadata && (
+                      <div className="flex items-center text-xs text-muted-foreground animate-pulse">
+                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                        Fetching metadata...
+                      </div>
+                    )}
+                  </div>
                   <Input
                     id="title"
                     placeholder="My awesome video"
@@ -126,6 +177,26 @@ export default function AddVideo() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="category">Category</Label>
+                <Select 
+                  value={formData.category} 
+                  onValueChange={(val) => setFormData({ ...formData, category: val })}
+                >
+                  <SelectTrigger className="h-12 bg-background">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="general">General</SelectItem>
+                    <SelectItem value="music">Music</SelectItem>
+                    <SelectItem value="education">Education</SelectItem>
+                    <SelectItem value="entertainment">Entertainment</SelectItem>
+                    <SelectItem value="tutorials">Tutorials</SelectItem>
+                    <SelectItem value="fitness">Fitness</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <Button 
