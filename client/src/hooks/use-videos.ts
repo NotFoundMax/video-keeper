@@ -8,25 +8,25 @@ import { apiRequest } from "@/lib/queryClient";
 // HOOKS
 // ============================================
 
-export function useVideos(filters?: { search?: string; platform?: string; favorite?: string; category?: string }) {
-  const queryKey = [api.videos.list.path, filters];
+export function useVideos(filters?: { search?: string; platform?: string; favorite?: string; category?: string; folderId?: number }) {
+  const queryKey = ["/api/videos", filters];
   return useQuery({
     queryKey,
     queryFn: async () => {
-      // Manually construct query string since apiRequest helper is generic
       const params = new URLSearchParams();
       if (filters?.search) params.append("search", filters.search);
       if (filters?.platform && filters.platform !== "all") params.append("platform", filters.platform);
       if (filters?.favorite) params.append("favorite", filters.favorite);
       if (filters?.category && filters.category !== "all") params.append("category", filters.category);
+      if (filters?.folderId) params.append("folderId", filters.folderId.toString());
       
-      const url = `${api.videos.list.path}?${params.toString()}`;
+      const url = `/api/videos?${params.toString()}`;
       const res = await fetch(url, { credentials: "include" });
       
       if (res.status === 401) throw new Error("Unauthorized");
       if (!res.ok) throw new Error("Failed to fetch videos");
       
-      return api.videos.list.responses[200].parse(await res.json());
+      return res.json();
     },
   });
 }

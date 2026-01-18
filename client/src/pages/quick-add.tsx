@@ -19,11 +19,7 @@ export default function QuickAdd() {
 
     // If not logged in, redirect to auth
     if (!user) {
-        // We'll let the user login, and hopefully they come back here?
-        // Actually, ProtectedRoute logic usually handles this, but since this is a popup,
-        // we might want customized behavior. Ideally, the router would have redirected to /auth already
-        // if we use ProtectedRoute.
-        return;
+      return;
     }
 
     // Parse URL params
@@ -34,17 +30,15 @@ export default function QuickAdd() {
 
     // Android/iOS sharing often puts the URL in 'text' instead of 'url'
     if (!url && text) {
-        const urlMatch = text.match(/https?:\/\/[^\s]+/);
-        if (urlMatch) {
-            url = urlMatch[0];
-        }
+      const urlMatch = text.match(/https?:\/\/[^\s]+/);
+      if (urlMatch) {
+        url = urlMatch[0];
+      }
     }
 
     if (!url) {
-      // If we still don't have a URL but have text, maybe the text IS the URL (without protocol?)
-      // Let's be strict for now to avoid errors.
       setStatus('error');
-      setErrorMsg("No valid URL found in shared content");
+      setErrorMsg("No se encontró una URL válida en el contenido compartido");
       return;
     }
 
@@ -59,25 +53,25 @@ export default function QuickAdd() {
         else if (urlStr.includes("instagram.com")) platform = "instagram";
 
         await apiRequest("POST", "/api/videos", {
-            url,
-            title: title || "Quick Saved Video",
-            platform,
-            isFavorite: false
+          url,
+          title: title || "Video Guardado Rápido",
+          platform,
+          isFavorite: false
         });
-        
+
         // Invalidate queries so main dashboard updates if open
         queryClient.invalidateQueries({ queryKey: ["/api/videos"] });
-        
+
         setStatus('success');
-        
+
         // Auto close after 2 seconds
         setTimeout(() => {
-            window.close();
+          window.close();
         }, 2000);
 
       } catch (e) {
         setStatus('error');
-        setErrorMsg("Error adding video. It might be a duplicate.");
+        setErrorMsg("Error al añadir el video. Podría estar duplicado.");
       }
     };
 
@@ -87,20 +81,19 @@ export default function QuickAdd() {
 
   if (isLoading) {
     return (
-       <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-4">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-       </div>
+      <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-4">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
     );
   }
-  
-  // If strict Auth check fails (handled by router wrapper usually), but here as visual backup
+
   if (!user) {
-      return (
-          <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 p-4 text-white text-center space-y-4">
-              <p>Please log in to save videos.</p>
-              <Button onClick={() => window.opener ? window.opener.focus() : window.open('/auth', '_blank')}>Go to Login</Button>
-          </div>
-      );
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 p-4 text-white text-center space-y-4">
+        <p>Por favor, inicia sesión para guardar videos.</p>
+        <Button onClick={() => window.opener ? window.opener.focus() : window.open('/auth', '_blank')}>Ir al Login</Button>
+      </div>
+    );
   }
 
   return (
@@ -110,9 +103,9 @@ export default function QuickAdd() {
           {status === 'loading' && (
             <>
               <div className="relative">
-                 <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+                <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
               </div>
-              <h2 className="text-xl font-semibold">Saving Video...</h2>
+              <h2 className="text-xl font-semibold">Guardando Video...</h2>
             </>
           )}
 
@@ -122,24 +115,24 @@ export default function QuickAdd() {
                 <CheckCircle2 className="w-8 h-8 text-green-500" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-green-400 mb-1">Saved!</h2>
-                <p className="text-zinc-400 text-sm">Added to your collection.</p>
+                <h2 className="text-xl font-bold text-green-400 mb-1">¡Guardado!</h2>
+                <p className="text-zinc-400 text-sm">Añadido a tu colección.</p>
               </div>
-              <p className="text-xs text-zinc-500 mt-4">Closing window...</p>
+              <p className="text-xs text-zinc-500 mt-4">Cerrando ventana...</p>
             </>
           )}
 
           {status === 'error' && (
             <>
-               <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mb-2">
+              <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mb-2">
                 <XCircle className="w-8 h-8 text-red-500" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-red-400 mb-1">Failed</h2>
+                <h2 className="text-xl font-bold text-red-400 mb-1">Falló</h2>
                 <p className="text-zinc-400 text-sm">{errorMsg}</p>
               </div>
               <Button variant="secondary" onClick={() => window.close()} className="mt-4">
-                Close
+                Cerrar
               </Button>
             </>
           )}

@@ -12,7 +12,7 @@ import AddVideo from "@/pages/add-video";
 import Profile from "@/pages/profile";
 import Landing from "@/pages/landing";
 import AuthPage from "@/pages/auth-page";
-import QuickAdd from "@/pages/quick-add";
+import FoldersPage from "@/pages/folders";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, isLoading } = useAuth();
@@ -38,7 +38,7 @@ function Router() {
       <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
       <Route path="/add" component={() => <ProtectedRoute component={AddVideo} />} />
       <Route path="/profile" component={() => <ProtectedRoute component={Profile} />} />
-      <Route path="/quick-add" component={() => <ProtectedRoute component={QuickAdd} />} />
+      <Route path="/folders" component={() => <ProtectedRoute component={FoldersPage} />} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/landing" component={Landing} />
       <Route component={NotFound} />

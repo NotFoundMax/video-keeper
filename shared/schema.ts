@@ -5,9 +5,34 @@ import { users } from "./models/auth";
 
 export * from "./models/auth";
 
+export const folders = pgTable("folders", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const tags = pgTable("tags", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  color: text("color").default("#3b82f6"), // Default blue
+});
+
+export const folderTags = pgTable("folder_tags", {
+  folderId: integer("folder_id").notNull().references(() => folders.id, { onDelete: 'cascade' }),
+  tagId: integer("tag_id").notNull().references(() => tags.id, { onDelete: 'cascade' }),
+}, (table) => [
+  {
+    pk: [table.folderId, table.tagId],
+  }
+]);
+
 export const videos = pgTable("videos", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
+  folderId: integer("folder_id").references(() => folders.id),
   url: text("url").notNull(),
   title: text("title").notNull(),
   platform: text("platform").notNull(), // 'youtube', 'tiktok', 'instagram', 'other'
@@ -18,11 +43,28 @@ export const videos = pgTable("videos", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const insertFolderSchema = createInsertSchema(folders).omit({ 
+  id: true, 
+  userId: true, 
+  createdAt: true 
+});
+
+export const insertTagSchema = createInsertSchema(tags).omit({ 
+  id: true, 
+  userId: true 
+});
+
 export const insertVideoSchema = createInsertSchema(videos).omit({ 
   id: true, 
   userId: true, 
   createdAt: true 
 });
+
+export type Folder = typeof folders.$inferSelect;
+export type InsertFolder = z.infer<typeof insertFolderSchema>;
+
+export type Tag = typeof tags.$inferSelect;
+export type InsertTag = z.infer<typeof insertTagSchema>;
 
 export type Video = typeof videos.$inferSelect;
 export type InsertVideo = z.infer<typeof insertVideoSchema>;

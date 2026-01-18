@@ -25,7 +25,7 @@ export default function AuthPage() {
     setIsPending(true);
     const formData = new FormData(e.currentTarget);
     const data = Object.fromEntries(formData);
-    
+
     try {
       const res = await fetch("/api/login", {
         method: "POST",
@@ -95,7 +95,7 @@ export default function AuthPage() {
             <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
               <Play className="w-6 h-6 text-primary fill-primary" />
             </div>
-            <CardTitle className="text-3xl font-display font-bold">Bienvenido a VidStack</CardTitle>
+            <CardTitle className="text-3xl font-display font-bold">Bienvenido a VideotecaApp</CardTitle>
             <CardDescription>
               Gestiona tu biblioteca de videos favorita
             </CardDescription>
@@ -106,7 +106,7 @@ export default function AuthPage() {
                 <TabsTrigger value="login">Iniciar Sesión</TabsTrigger>
                 <TabsTrigger value="register">Registrarse</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="login">
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
@@ -159,7 +159,7 @@ export default function AuthPage() {
             Guarda videos de YouTube, TikTok e Instagram. Organízalos por categorías y accede a ellos desde cualquier dispositivo.
           </p>
         </div>
-        
+
         {/* Decoración abstracta */}
         <div className="absolute -bottom-20 -right-20 w-80 h-80 bg-primary/20 rounded-full blur-[100px]" />
         <div className="absolute -top-20 -left-20 w-80 h-80 bg-accent/20 rounded-full blur-[100px]" />

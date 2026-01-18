@@ -14,13 +14,24 @@ declare global {
   }
 }
 
+import memorystore from "memorystore";
+
 export function setupAuth(app: Express) {
-  const PostgresStore = connectPg(session);
-  const sessionStore = new PostgresStore({
-    pool: pool,
-    createTableIfMissing: false,
-    tableName: "sessions",
-  });
+  let sessionStore;
+  
+  if (app.get("env") === "production") {
+    const PostgresStore = connectPg(session);
+    sessionStore = new PostgresStore({
+      pool: pool,
+      createTableIfMissing: true,
+      tableName: "sessions",
+    });
+  } else {
+    const MemoryStore = memorystore(session);
+    sessionStore = new MemoryStore({
+      checkPeriod: 86400000 // prune expired entries every 24h
+    });
+  }
 
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "video-keeper-secret",
@@ -97,6 +108,13 @@ export function setupAuth(app: Express) {
     req.logout((err) => {
       if (err) return next(err);
       res.sendStatus(200);
+    });
+  });
+
+  app.get("/api/logout", (req, res, next) => {
+    req.logout((err) => {
+      if (err) return next(err);
+      res.redirect("/");
     });
   });
 

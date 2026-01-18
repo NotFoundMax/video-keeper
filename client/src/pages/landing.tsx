@@ -29,10 +29,10 @@ export default function Landing() {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20">
               <Play className="w-5 h-5 text-white fill-white" />
             </div>
-            <span className="text-2xl font-bold font-display tracking-tight">VidStack</span>
+            <span className="text-2xl font-bold font-display tracking-tight">VideotecaApp</span>
           </div>
           <Button asChild variant="outline" className="hidden sm:flex border-primary/20 hover:border-primary/50 hover:bg-primary/5">
-            <a href="/api/login">Log In</a>
+            <a href="/api/login">Iniciar Sesión</a>
           </Button>
         </div>
       </nav>
@@ -45,43 +45,41 @@ export default function Landing() {
 
         <div className="max-w-4xl mx-auto text-center space-y-8">
           <h1 className="text-5xl md:text-7xl font-bold font-display tracking-tight leading-[1.1]">
-            All your videos in <br />
-            <span className="text-gradient">one aesthetic place.</span>
+            Todos tus videos en <br />
+            <span className="text-gradient">un lugar estético.</span>
           </h1>
-          
+
           <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            Curate, organize, and enjoy your favorite content from YouTube, TikTok, and Instagram in a unified, distraction-free space.
+            Organiza y disfruta tu contenido favorito de YouTube, TikTok e Instagram en un espacio unificado y libre de distracciones.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
             <Button asChild size="lg" className="h-14 px-8 text-lg rounded-full shadow-xl shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-1 transition-all duration-300">
-              <a href="/api/login">Get Started for Free</a>
+              <a href="/api/login">Empezar Gratis</a>
             </Button>
             <Button asChild variant="ghost" size="lg" className="h-14 px-8 text-lg rounded-full hover:bg-white/5">
-              <a href="#features">Learn more</a>
+              <a href="#features">Saber más</a>
             </Button>
           </div>
         </div>
-        
+
         {/* Hero Image / Mockup */}
         <div className="mt-20 max-w-5xl mx-auto relative group">
           <div className="absolute -inset-1 bg-gradient-to-r from-primary via-accent to-purple-600 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-1000"></div>
-          {/* Unsplash abstract tech image as placeholder for dashboard screenshot */}
-          {/* tech dashboard abstract dark */}
           <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-card aspect-video flex items-center justify-center group-hover:scale-[1.01] transition duration-500">
-             <img 
-               src="https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=1974&auto=format&fit=crop" 
-               alt="App Dashboard"
-               className="w-full h-full object-cover opacity-80"
-             />
-             <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
-             <div className="absolute bottom-10 left-10 text-left">
-               <div className="flex gap-2 mb-2">
-                 <span className="px-3 py-1 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-bold uppercase tracking-wider">YouTube</span>
-                 <span className="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-xs font-bold uppercase tracking-wider">TikTok</span>
-               </div>
-               <h3 className="text-3xl font-bold">Unified Dashboard</h3>
-             </div>
+            <img
+              src="https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=1974&auto=format&fit=crop"
+              alt="App Dashboard"
+              className="w-full h-full object-cover opacity-80"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
+            <div className="absolute bottom-10 left-10 text-left">
+              <div className="flex gap-2 mb-2">
+                <span className="px-3 py-1 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-bold uppercase tracking-wider">YouTube</span>
+                <span className="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-xs font-bold uppercase tracking-wider">TikTok</span>
+              </div>
+              <h3 className="text-3xl font-bold">Panel Unificado</h3>
+            </div>
           </div>
         </div>
       </section>
@@ -90,26 +88,26 @@ export default function Landing() {
       <section id="features" className="py-24 bg-card/30 border-t border-white/5">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold font-display mb-4">Why use VidStack?</h2>
-            <p className="text-muted-foreground text-lg">Designed for content curators and video lovers.</p>
+            <h2 className="text-3xl md:text-4xl font-bold font-display mb-4">¿Por qué usar VideotecaApp?</h2>
+            <p className="text-muted-foreground text-lg">Diseñado para curadores de contenido y amantes del video.</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
             {[
               {
                 icon: Layers,
-                title: "Centralized Library",
-                desc: "Stop switching apps. Keep your learning materials, entertainment, and inspiration all in one searchable library."
+                title: "Biblioteca Centralizada",
+                desc: "Deja de saltar entre apps. Mantén tus materiales de aprendizaje, entretenimiento e inspiración en una sola biblioteca."
               },
               {
                 icon: Smartphone,
-                title: "Mobile First",
-                desc: "Designed for your phone. The interface feels like a native app, perfect for watching on the go."
+                title: "Primero el Móvil",
+                desc: "Diseñado para tu teléfono. La interfaz se siente como una app nativa, perfecta para ver sobre la marcha."
               },
               {
                 icon: Share2,
-                title: "Cross-Platform",
-                desc: "Works with links from YouTube, Vimeo, TikTok, Instagram Reels, and more. Just paste and play."
+                title: "Multiplataforma",
+                desc: "Funciona con enlaces de YouTube, Vimeo, TikTok, Instagram Reels y más. Solo pega y reproduce."
               }
             ].map((feature, i) => (
               <div key={i} className="p-8 rounded-3xl bg-card border border-border hover:border-primary/30 hover:bg-card/80 transition-all duration-300 group">
@@ -131,10 +129,10 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2">
             <Play className="w-5 h-5 text-primary fill-primary" />
-            <span className="font-bold font-display">VidStack</span>
+            <span className="font-bold font-display">VideotecaApp</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} VidStack. Built for the modern web.
+            © {new Date().getFullYear()} VideotecaApp. Construido para la web moderna.
           </p>
         </div>
       </footer>
