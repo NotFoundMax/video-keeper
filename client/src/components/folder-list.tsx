@@ -57,17 +57,17 @@ export function FolderList({ selectedFolderId, onSelectFolder, layout = "vertica
           <button
             key={folder.id}
             onClick={() => onSelectFolder(folder.id)}
-            className={`flex-shrink-0 w-44 p-5 rounded-[2rem] border-none text-left flex flex-col gap-4 ${selectedFolderId === folder.id
-              ? "bg-primary text-white shadow-xl shadow-primary/30"
-              : "bg-white text-slate-900 shadow-sm"
+            className={`flex-shrink-0 w-44 p-6 rounded-[2.5rem] border-none text-center flex flex-col items-center gap-4 transition-all duration-300 ${selectedFolderId === folder.id
+              ? "bg-primary text-white shadow-2xl shadow-primary/30 scale-[1.02]"
+              : "bg-white text-slate-900 shadow-[0_8px_30px_rgb(0,0,0,0.04)]"
               }`}
           >
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${selectedFolderId === folder.id ? "bg-white/20" : "bg-slate-100"}`}>
-              <FolderIcon className={`w-6 h-6 ${selectedFolderId === folder.id ? "text-white" : "text-primary"}`} />
+            <div className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center ${selectedFolderId === folder.id ? "bg-white/20" : "bg-indigo-50"}`}>
+              <FolderIcon className={`w-8 h-8 ${selectedFolderId === folder.id ? "text-white" : "text-indigo-500"}`} />
             </div>
             <div>
-              <h3 className="font-bold text-lg leading-tight truncate">{folder.name}</h3>
-              <p className={`text-xs mt-1 font-medium ${selectedFolderId === folder.id ? "text-white/70" : "text-slate-400"}`}>
+              <h3 className="font-black text-base leading-tight truncate w-32">{folder.name}</h3>
+              <p className={`text-[10px] mt-1 font-bold uppercase tracking-widest ${selectedFolderId === folder.id ? "text-white/70" : "text-slate-400"}`}>
                 {(folder as any).videoCount || 0} videos
               </p>
             </div>

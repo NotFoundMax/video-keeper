@@ -37,8 +37,11 @@ export const videos = pgTable("videos", {
   title: text("title").notNull(),
   platform: text("platform").notNull(), // 'youtube', 'tiktok', 'instagram', 'other'
   thumbnailUrl: text("thumbnail_url"),
+  authorName: text("author_name"), // Channel or author name
+  duration: integer("duration"), // Video duration in seconds
   category: text("category").default("general"),
   isFavorite: boolean("is_favorite").default(false),
+  aspectRatio: text("aspect_ratio").default("auto"), // 'auto', 'horizontal', 'vertical', 'square'
   lastTimestamp: integer("last_timestamp").default(0), // Saved progress in seconds
   createdAt: timestamp("created_at").defaultNow(),
 });

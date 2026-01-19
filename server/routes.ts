@@ -131,7 +131,7 @@ export async function registerRoutes(
       const input = api.videos.create.input.parse(req.body);
       // @ts-ignore
       const userId = req.user!.id;
-      input.url = await resolveTikTokUrl(input.url);
+      input.url = await resolveUrlRedirects(input.url);
       if (input.folderId && isNaN(input.folderId)) input.folderId = null;
       const video = await storage.createVideo(userId, input);
       res.status(201).json(video);
@@ -170,6 +170,31 @@ export async function registerRoutes(
     await storage.deleteVideo(id, userId);
     res.status(204).send();
   });
+
+  // Lightweight progress update endpoint (no full validation needed)
+  app.patch("/api/videos/:id/progress", isAuthenticated, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const { lastTimestamp } = req.body;
+      
+      if (isNaN(id) || typeof lastTimestamp !== 'number' || lastTimestamp < 0) {
+        return res.status(400).json({ message: "Invalid parameters" });
+      }
+
+      // @ts-ignore
+      const userId = req.user!.id;
+      const updated = await storage.updateVideo(id, userId, { lastTimestamp });
+      
+      if (!updated) {
+        return res.status(404).json({ message: "Video not found" });
+      }
+
+      res.json({ success: true, lastTimestamp });
+    } catch (err) {
+      console.error("Progress update error:", err);
+      res.status(500).json({ message: "Failed to update progress" });
+    }
+  });
   
   app.post(api.videos.metadata.path, isAuthenticated, async (req, res) => {
     try {
@@ -181,16 +206,30 @@ export async function registerRoutes(
       else if (urlStr.includes("tiktok.com")) platform = "tiktok";
       else if (urlStr.includes("instagram.com")) platform = "instagram";
       else if (urlStr.includes("vimeo.com")) platform = "vimeo";
+      else if (urlStr.includes("facebook.com") || urlStr.includes("fb.watch")) platform = "facebook";
 
-      const resolvedUrl = await resolveTikTokUrl(url);
+      const resolvedUrl = await resolveUrlRedirects(url);
       
-      let metadata = { title: "Video", thumbnail: "", authorName: "", platform };
+      let metadata = { 
+        title: "Video", 
+        thumbnail: "", 
+        authorName: "", 
+        duration: 0,
+        platform, 
+        aspectRatio: "auto" 
+      };
+      
+      // Auto-detect verticality
+      if (platform === "tiktok" || platform === "instagram" || url.includes("/shorts/") || url.includes("/reel/") || url.includes("/reels/") || url.includes("fb.watch")) {
+        metadata.aspectRatio = "vertical";
+      }
       
       try {
         let oembedUrl = "";
         if (platform === "youtube") oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(resolvedUrl)}&format=json`;
         else if (platform === "tiktok") oembedUrl = `https://www.tiktok.com/oembed?url=${encodeURIComponent(resolvedUrl)}`;
         else if (platform === "vimeo") oembedUrl = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(resolvedUrl)}`;
+        else if (platform === "instagram") oembedUrl = `https://api.instagram.com/oembed/?url=${encodeURIComponent(resolvedUrl)}`;
 
         if (oembedUrl) {
           const response = await fetch(oembedUrl, {
@@ -203,6 +242,70 @@ export async function registerRoutes(
             metadata.title = data.title || metadata.title;
             metadata.thumbnail = data.thumbnail_url || "";
             metadata.authorName = data.author_name || "";
+            
+            // Extract duration if available
+            if (data.duration) {
+              metadata.duration = parseInt(data.duration);
+            }
+            // Vimeo returns duration differently
+            if (platform === "vimeo" && data.video_duration) {
+              metadata.duration = data.video_duration;
+            }
+          }
+        }
+
+        // Fallback for Facebook, Instagram or if oEmbed failed
+        if (!metadata.thumbnail && (platform === "facebook" || platform === "instagram" || platform === "other")) {
+          let fetchUrl = resolvedUrl;
+          let userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+          
+          if (platform === "facebook" || platform === "instagram") {
+            // Use mobile version as it's often less restrictive for scraping meta tags
+            if (platform === "facebook") {
+              fetchUrl = resolvedUrl.replace('www.facebook.com', 'm.facebook.com');
+              if (!fetchUrl.includes('m.facebook.com')) {
+                const urlObj = new URL(resolvedUrl);
+                urlObj.hostname = 'm.facebook.com';
+                fetchUrl = urlObj.toString();
+              }
+            }
+            // For Instagram, sometimes adding /embed/ helps get metadata without login
+            if (platform === "instagram" && !resolvedUrl.includes('/embed/')) {
+              const urlObj = new URL(resolvedUrl);
+              urlObj.pathname = urlObj.pathname.replace(/\/$/, '') + '/embed/';
+              fetchUrl = urlObj.toString();
+            }
+            userAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1';
+          }
+
+          const response = await fetch(fetchUrl, {
+            headers: {
+              'User-Agent': userAgent,
+              'Accept-Language': 'en-US,en;q=0.9',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache'
+            }
+          });
+          
+          if (response.ok) {
+            const html = await response.text();
+            
+            // Extract og:image
+            const ogImageMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) || 
+                                html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i) ||
+                                html.match(/["']thumbnail_url["']:\s*["']([^"']+)["']/i); // Instagram JSON fallback
+            if (ogImageMatch) {
+              metadata.thumbnail = ogImageMatch[1].replace(/&amp;/g, '&').replace(/\\u0026/g, '&');
+            }
+            
+            // Extract og:title
+            const ogTitleMatch = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) || 
+                                html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i) ||
+                                html.match(/<title>([^<]+)<\/title>/i);
+            if (ogTitleMatch) {
+              metadata.title = ogTitleMatch[1].replace(/&amp;/g, '&').trim();
+            }
           }
         }
 
@@ -218,7 +321,7 @@ export async function registerRoutes(
         // Clean up title: remove notification counters and platform suffixes
         if (metadata.title) {
           metadata.title = metadata.title.replace(/^\(\d+\)\s*/, '');
-          metadata.title = metadata.title.replace(/\s*-\s*(YouTube|TikTok|Vimeo|Instagram)\s*$/i, '');
+          metadata.title = metadata.title.replace(/\s*-\s*(YouTube|TikTok|Vimeo|Instagram|Facebook)\s*$/i, '');
           metadata.title = metadata.title.trim();
         }
       } catch (e) {
@@ -231,6 +334,35 @@ export async function registerRoutes(
       res.status(400).json({ message: "Invalid URL" });
     }
   });
+
+  // Check for duplicate videos
+  app.post("/api/videos/check-duplicate", isAuthenticated, async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url || typeof url !== 'string') {
+        return res.status(400).json({ message: "URL is required" });
+      }
+
+      // @ts-ignore
+      const userId = req.user!.id;
+      
+      // Resolve any short URLs first
+      const resolvedUrl = await resolveUrlRedirects(url);
+      
+      // Check if this URL already exists
+      const existing = await storage.findByUrl(userId, resolvedUrl);
+      
+      if (existing) {
+        return res.json({ exists: true, video: existing });
+      }
+      
+      res.json({ exists: false });
+    } catch (err) {
+      console.error("Duplicate check error:", err);
+      res.status(500).json({ message: "Failed to check duplicate" });
+    }
+  });
+
   app.get("/api/videos/bookmarklet-code", isAuthenticated, (req, res) => {
     const host = req.get('host') || 'localhost:5000';
     const protocol = req.protocol;
@@ -246,10 +378,12 @@ export async function registerRoutes(
 
   return httpServer;
 }
-export async function resolveTikTokUrl(url: string): Promise<string> {
+export async function resolveUrlRedirects(url: string): Promise<string> {
   if (url.includes("vm.tiktok.com") || 
       url.includes("vt.tiktok.com") || 
-      url.includes("tiktok.com/t/")) {
+      url.includes("tiktok.com/t/") ||
+      url.includes("facebook.com/share/") ||
+      url.includes("fb.watch/")) {
     try {
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), 8000);
@@ -263,9 +397,20 @@ export async function resolveTikTokUrl(url: string): Promise<string> {
         }
       });
       clearTimeout(id);
+      
+      // If it's a Facebook share URL and didn't redirect, try to scrape og:url
+      if (url.includes("facebook.com/share/") && response.url === url) {
+        const html = await response.text();
+        const ogUrlMatch = html.match(/<meta[^>]+property=["']og:url["'][^>]+content=["']([^"']+)["']/i) ||
+                          html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:url["']/i);
+        if (ogUrlMatch) {
+          return ogUrlMatch[1].replace(/&amp;/g, '&');
+        }
+      }
+
       if (response.url && response.url !== url) return response.url;
     } catch (e) {
-      console.error("Error resolving TikTok short URL:", e);
+      console.error("Error resolving short URL:", e);
     }
   }
   return url;

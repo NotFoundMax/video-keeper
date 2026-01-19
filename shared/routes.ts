@@ -82,6 +82,7 @@ export const api = {
           thumbnail: z.string().optional(),
           authorName: z.string().optional(),
           platform: z.string(),
+          aspectRatio: z.string().optional(),
         }),
         400: errorSchemas.validation,
         401: errorSchemas.unauthorized,

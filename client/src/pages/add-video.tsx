@@ -40,8 +40,11 @@ export default function AddVideo() {
     thumbnailUrl: "" as string | undefined,
     category: "general",
     folderId: undefined as number | undefined,
+    aspectRatio: "auto",
   });
   const [previewError, setPreviewError] = useState(false);
+  const [duplicateVideo, setDuplicateVideo] = useState<any>(null);
+  const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
 
   // Handle incoming shared content
   useEffect(() => {
@@ -63,18 +66,47 @@ export default function AddVideo() {
     }
   }, []);
 
-  // Auto-detect platform and fetch metadata
+  // Auto-detect platform, fetch metadata, and check for duplicates
   useEffect(() => {
-    if (!formData.url || !formData.url.startsWith("http")) return;
+    if (!formData.url || !formData.url.startsWith("http")) {
+      setDuplicateVideo(null);
+      return;
+    }
 
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
+      // Check for duplicates first
+      setIsCheckingDuplicate(true);
+      try {
+        const response = await fetch("/api/videos/check-duplicate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ url: formData.url }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.exists) {
+            setDuplicateVideo(data.video);
+          } else {
+            setDuplicateVideo(null);
+          }
+        }
+      } catch (err) {
+        console.error("Duplicate check failed:", err);
+      } finally {
+        setIsCheckingDuplicate(false);
+      }
+
+      // Fetch metadata
       fetchMetadata(formData.url, {
         onSuccess: (data: any) => {
           setFormData(prev => ({
             ...prev,
             title: prev.title || data.title,
             platform: data.platform,
-            thumbnailUrl: data.thumbnail
+            thumbnailUrl: data.thumbnail,
+            aspectRatio: data.aspectRatio || "auto"
           }));
         }
       });
@@ -119,8 +151,8 @@ export default function AddVideo() {
 
             {formData.url && !previewError && (
               <div className={`rounded-[2rem] overflow-hidden bg-slate-100 relative group flex items-center justify-center shadow-inner transition-all duration-500 ${formData.platform === 'tiktok' || formData.platform === 'instagram' || formData.url.includes('/shorts/')
-                  ? "aspect-[9/16] max-w-[300px] mx-auto ring-4 ring-slate-900/5"
-                  : "aspect-video"
+                ? "aspect-[9/16] max-w-[300px] mx-auto ring-4 ring-slate-900/5"
+                : "aspect-video"
                 }`}>
                 {isFetchingMetadata ? (
                   <div className="flex flex-col items-center gap-3">
@@ -166,6 +198,17 @@ export default function AddVideo() {
                 <AlertTitle className="font-bold">URL Inválida</AlertTitle>
                 <AlertDescription className="text-xs font-medium opacity-80">
                   No pudimos cargar una vista previa para este video. Por favor, verifica la URL.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {duplicateVideo && (
+              <Alert className="rounded-2xl border-amber-100 bg-amber-50 text-amber-700">
+                <AlertCircle className="h-5 w-5 text-amber-600" />
+                <AlertTitle className="font-bold">¡Este video ya existe!</AlertTitle>
+                <AlertDescription className="text-xs font-medium opacity-90">
+                  Ya tienes este video en tu videoteca con el título: <span className="font-bold">"{duplicateVideo.title}"</span>.
+                  Añadirlo de nuevo creará una copia.
                 </AlertDescription>
               </Alert>
             )}
@@ -248,6 +291,27 @@ export default function AddVideo() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Formato de Pantalla</label>
+              <Select
+                value={formData.aspectRatio || "auto"}
+                onValueChange={(val) => setFormData({ ...formData, aspectRatio: val })}
+              >
+                <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-primary/20 font-bold">
+                  <SelectValue placeholder="Automático" />
+                </SelectTrigger>
+                <SelectContent className="rounded-2xl border-none shadow-xl">
+                  <SelectItem value="auto">Automático (Detección)</SelectItem>
+                  <SelectItem value="horizontal">Horizontal (16:9)</SelectItem>
+                  <SelectItem value="vertical">Vertical (9:16)</SelectItem>
+                  <SelectItem value="square">Cuadrado (1:1)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-slate-400 ml-1 font-medium italic">
+                * El formato cuadrado (1:1) es común en posts de Instagram y Facebook.
+              </p>
             </div>
 
             <Button

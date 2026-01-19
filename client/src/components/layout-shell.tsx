@@ -92,7 +92,7 @@ export function LayoutShell({ children }: { children: ReactNode }) {
       </main>
 
       {/* Mobile Bottom Navigation - Dark Theme like the image */}
-      <nav className="md:hidden fixed bottom-4 left-4 right-4 bg-[#0F172A] rounded-[2rem] shadow-2xl z-50 px-6 py-3">
+      <nav className="md:hidden fixed bottom-6 left-6 right-6 bg-[#0F172A] rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] z-50 px-8 py-4">
         <div className="flex justify-between items-center">
           {navItems.map((item) => {
             const isActive = location === item.href;
@@ -100,10 +100,10 @@ export function LayoutShell({ children }: { children: ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex flex-col items-center gap-1 transition-all ${isActive ? 'text-white' : 'text-slate-400'}`}
+                className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${isActive ? 'text-white scale-110' : 'text-slate-500 hover:text-slate-300'}`}
               >
-                <item.icon className={`w-6 h-6 ${isActive ? 'fill-white/10' : ''}`} />
-                <span className="text-[10px] font-bold uppercase tracking-wider">{item.label}</span>
+                <item.icon className={`w-6 h-6 ${isActive ? 'fill-white/10' : ''}`} strokeWidth={isActive ? 2.5 : 2} />
+                <span className="text-[9px] font-black uppercase tracking-[0.15em]">{item.label}</span>
               </Link>
             );
           })}
