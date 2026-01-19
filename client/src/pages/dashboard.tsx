@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ViewModeToggle } from "@/components/view-mode-toggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Loader2, Youtube, Music, Instagram, Video as VideoIcon, FilterX, Heart, HelpCircle, Share2, MousePointer2, Folder, PlusCircle, Tag as TagIcon } from "lucide-react";
+import { Search, Loader2, Youtube, Music, Instagram, Video as VideoIcon, FilterX, Heart, HelpCircle, Share2, MousePointer2, Folder, PlusCircle, Tag as TagIcon, Play } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import { FolderList } from "@/components/folder-list";
@@ -70,20 +70,33 @@ export default function Dashboard() {
         {tags && tags.length > 0 && (
           <section className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
                 <TagIcon className="w-5 h-5 text-primary" />
                 Filtrar por Etiqueta
               </h2>
-              {selectedTagId && (
-                <Button
-                  variant="ghost"
-                  className="text-slate-400 font-black text-[10px] tracking-widest uppercase hover:bg-transparent p-0 hover:text-primary"
-                  onClick={() => setSelectedTagId(undefined)}
-                >
-                  <FilterX className="w-3 h-3 mr-1" />
-                  Limpiar
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {selectedTagId && (
+                  <>
+                    <Link href={`/playlist/${selectedTagId}`}>
+                      <Button
+                        variant="default"
+                        className="font-black text-[10px] tracking-widest uppercase h-8 px-4 rounded-full bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
+                      >
+                        <Play className="w-3 h-3 mr-1" />
+                        Reproducir Todo
+                      </Button>
+                    </Link>
+                    <Button
+                      variant="ghost"
+                      className="text-slate-400 dark:text-slate-500 font-black text-[10px] tracking-widest uppercase hover:bg-transparent p-0 hover:text-primary"
+                      onClick={() => setSelectedTagId(undefined)}
+                    >
+                      <FilterX className="w-3 h-3 mr-1" />
+                      Limpiar
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none -mx-6 px-6">
               <Button
@@ -162,10 +175,10 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className={`grid gap-${viewMode === 'list' ? '4' : '8'} ${viewMode === 'grid'
-                  ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
-                  : viewMode === 'compact'
-                    ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
-                    : 'grid-cols-1'
+                ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+                : viewMode === 'compact'
+                  ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
+                  : 'grid-cols-1'
                 }`}>
                 <AnimatePresence>
                   {videos?.map((video: any) => (

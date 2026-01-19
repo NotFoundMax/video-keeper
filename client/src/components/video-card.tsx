@@ -12,7 +12,8 @@ import {
   Youtube,
   Plus,
   Tag as TagIcon,
-  CheckCircle2
+  CheckCircle2,
+  StickyNote
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
@@ -42,7 +43,9 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
   const [isPlayingInline, setIsPlayingInline] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isTagDialogOpen, setIsTagDialogOpen] = useState(false);
+  const [isNotesDialogOpen, setIsNotesDialogOpen] = useState(false);
   const [localTimestamp, setLocalTimestamp] = useState(video.lastTimestamp || 0);
+  const [localNotes, setLocalNotes] = useState(video.notes || "");
 
   useEffect(() => {
     setLocalTimestamp(video.lastTimestamp || 0);
@@ -314,6 +317,21 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
               <Button
                 variant="ghost"
                 size="icon"
+                className={`h-8 w-8 rounded-full transition-colors relative ${video.notes
+                  ? 'text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950'
+                  : 'text-slate-400 hover:text-primary hover:bg-primary/10'
+                  }`}
+                onClick={() => setIsNotesDialogOpen(true)}
+                title={video.notes ? "Ver/Editar notas" : "Añadir notas"}
+              >
+                <StickyNote className="w-4 h-4" />
+                {video.notes && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-500 rounded-full"></span>
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
                 className="h-8 w-8 text-slate-400 hover:text-destructive hover:bg-destructive/10 rounded-full transition-colors"
                 onClick={() => onDelete(video.id)}
               >
@@ -560,6 +578,78 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
           <Button onClick={() => setIsTagDialogOpen(false)} className="w-full h-14 rounded-2xl font-black text-lg shadow-lg shadow-primary/20 mt-2">
             Listo
           </Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* Notes Dialog */}
+      <Dialog open={isNotesDialogOpen} onOpenChange={setIsNotesDialogOpen}>
+        <DialogContent className="sm:max-w-2xl rounded-[2rem] p-8 bg-white dark:bg-slate-900 border-none shadow-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="mb-4">
+            <DialogTitle className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-3">
+              <StickyNote className="w-6 h-6 text-amber-500" />
+              Notas del Video
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+              <h4 className="font-bold text-sm text-slate-700 dark:text-slate-300 mb-2">{video.title}</h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {video.authorName && `Por ${video.authorName} • `}
+                {video.platform.toUpperCase()}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">
+                Tus Notas
+              </label>
+              <textarea
+                value={localNotes}
+                onChange={(e) => setLocalNotes(e.target.value)}
+                placeholder="Escribe tus notas aquí... Puedes usar Markdown para formato."
+                className="w-full h-64 px-4 py-3 rounded-xl bg-white dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-700 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none resize-none font-mono text-sm transition-all"
+              />
+              <p className="text-xs text-slate-400 dark:text-slate-500 ml-1">
+                💡 Tip: Puedes usar **negrita**, *cursiva*, `código`, y más con Markdown
+              </p>
+            </div>
+
+            {localNotes && (
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">
+                  Vista Previa
+                </label>
+                <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 prose prose-sm dark:prose-invert max-w-none">
+                  <div className="whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300">
+                    {localNotes}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-3 mt-6">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setLocalNotes(video.notes || "");
+                setIsNotesDialogOpen(false);
+              }}
+              className="flex-1 h-12 rounded-xl font-bold"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                onUpdate(video.id, { notes: localNotes || null });
+                setIsNotesDialogOpen(false);
+              }}
+              className="flex-1 h-12 rounded-xl font-bold shadow-lg shadow-primary/20"
+            >
+              Guardar Notas
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </>

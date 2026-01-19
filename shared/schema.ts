@@ -44,6 +44,7 @@ export const videos = pgTable("videos", {
   isFavorite: boolean("is_favorite").default(false),
   aspectRatio: text("aspect_ratio").default("auto"), // 'auto', 'horizontal', 'vertical', 'square'
   lastTimestamp: integer("last_timestamp").default(0), // Saved progress in seconds
+  notes: text("notes"), // User notes about the video
   createdAt: timestamp("created_at").defaultNow(),
 });
 
