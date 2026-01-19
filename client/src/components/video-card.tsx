@@ -118,7 +118,7 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
     <>
       <div className={`group flex flex-col gap-3 ${isVertical ? "row-span-2" : "row-span-1"}`}>
         <Card
-          className={`relative overflow-hidden bg-slate-200 border-none rounded-[2rem] shadow-sm ${isVertical ? "aspect-[9/16]" : "aspect-video"
+          className={`relative overflow-hidden bg-slate-200 border-none rounded-[2rem] shadow-sm transition-all duration-500 hover:shadow-xl hover:shadow-primary/10 ${isVertical ? "aspect-[9/16] ring-4 ring-slate-900/5" : "aspect-video"
             }`}
         >
           <div
@@ -129,7 +129,7 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
               <img
                 src={video.thumbnailUrl}
                 alt={video.title}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-transform duration-700 group-hover/thumb:scale-110"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-slate-100">
@@ -139,7 +139,7 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
 
             {/* Play Icon Overlay - Top Left */}
             <div className="absolute top-4 left-4 z-30">
-              <div className="w-10 h-10 rounded-full bg-white/30 backdrop-blur-md flex items-center justify-center shadow-lg border border-white/20">
+              <div className="w-10 h-10 rounded-full bg-white/30 backdrop-blur-md flex items-center justify-center shadow-lg border border-white/20 transition-transform group-hover/thumb:scale-110">
                 {video.platform.toLowerCase() === 'youtube' ? (
                   <Youtube className="w-5 h-5 text-white fill-white" />
                 ) : (
@@ -154,7 +154,7 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
                 e.stopPropagation();
                 onUpdate(video.id, { isFavorite: !video.isFavorite });
               }}
-              className="absolute top-4 right-4 z-30 p-2.5 rounded-2xl bg-white/20 backdrop-blur-md border border-white/10"
+              className="absolute top-4 right-4 z-30 p-2.5 rounded-2xl bg-white/20 backdrop-blur-md border border-white/10 hover:bg-white/40 transition-all"
             >
               <Heart
                 className={`w-4 h-4 transition-all duration-300 ${video.isFavorite ? "fill-red-500 text-red-500 scale-110" : "text-white"}`}
@@ -181,10 +181,10 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
               <div className="absolute inset-0 z-40 bg-black flex items-center justify-center">
                 <div className="w-full h-full relative">
                   {videoInfo.type === 'tiktok' ? (
-                    <div className="w-full h-full relative z-10 overflow-hidden">
-                      <div className="absolute inset-x-0 top-0 bottom-0 scale-[1.35] origin-center -translate-y-[5%]">
+                    <div className="w-full h-full relative z-10 overflow-hidden bg-black">
+                      <div className="absolute inset-0 scale-[1.01] origin-center">
                         <iframe
-                          src={`https://www.tiktok.com/embed/v2/${videoInfo.id}`}
+                          src={`https://www.tiktok.com/embed/v2/${videoInfo.id}?controls=0&rel=0`}
                           className="w-full h-full border-0"
                           scrolling="no"
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -192,12 +192,14 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
                       </div>
                     </div>
                   ) : (videoInfo.type === 'youtube' || videoInfo.type === 'youtube-shorts') ? (
-                    <iframe
-                      src={`https://www.youtube.com/embed/${videoInfo.id}?autoplay=1&modestbranding=1&rel=0&start=${video.lastTimestamp || 0}&origin=${window.location.origin}`}
-                      className="w-full h-full border-0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
+                    <div className="w-full h-full bg-black">
+                      <iframe
+                        src={`https://www.youtube.com/embed/${videoInfo.id}?autoplay=1&modestbranding=1&rel=0&start=${video.lastTimestamp || 0}&origin=${window.location.origin}${isVertical ? '&controls=0' : ''}`}
+                        className={`w-full h-full border-0 ${isVertical ? 'scale-[1.01]' : ''}`}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
                   ) : (
                     <iframe
                       src={`https://player.vimeo.com/video/${videoInfo.id}?autoplay=1&badge=0&autopause=0&player_id=0&app_id=58479#t=${video.lastTimestamp || 0}s`}
@@ -208,7 +210,7 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
                   )}
                   <button
                     onClick={handleCloseInline}
-                    className="absolute top-4 right-4 z-50 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                    className="absolute top-4 right-4 z-50 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors backdrop-blur-md"
                   >
                     <XCircle className="w-6 h-6" />
                   </button>

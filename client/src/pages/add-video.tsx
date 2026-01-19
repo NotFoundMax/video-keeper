@@ -118,7 +118,10 @@ export default function AddVideo() {
             </div>
 
             {formData.url && !previewError && (
-              <div className="rounded-[2rem] overflow-hidden bg-slate-100 aspect-video relative group flex items-center justify-center shadow-inner">
+              <div className={`rounded-[2rem] overflow-hidden bg-slate-100 relative group flex items-center justify-center shadow-inner transition-all duration-500 ${formData.platform === 'tiktok' || formData.platform === 'instagram' || formData.url.includes('/shorts/')
+                  ? "aspect-[9/16] max-w-[300px] mx-auto ring-4 ring-slate-900/5"
+                  : "aspect-video"
+                }`}>
                 {isFetchingMetadata ? (
                   <div className="flex flex-col items-center gap-3">
                     <div className="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />

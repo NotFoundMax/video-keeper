@@ -172,12 +172,8 @@ export async function registerRoutes(
   });
   
   app.post(api.videos.metadata.path, isAuthenticated, async (req, res) => {
-    console.log("\n=== METADATA API CALLED ===");
-    console.log("Request body:", req.body);
-    
     try {
       const { url } = api.videos.metadata.input.parse(req.body);
-      console.log("Parsed URL:", url);
       
       let platform = "other";
       const urlStr = url.toLowerCase();
@@ -185,11 +181,8 @@ export async function registerRoutes(
       else if (urlStr.includes("tiktok.com")) platform = "tiktok";
       else if (urlStr.includes("instagram.com")) platform = "instagram";
       else if (urlStr.includes("vimeo.com")) platform = "vimeo";
-      
-      console.log("Detected platform:", platform);
 
       const resolvedUrl = await resolveTikTokUrl(url);
-      console.log("Resolved URL:", resolvedUrl);
       
       let metadata = { title: "Video", thumbnail: "", authorName: "", platform };
       
@@ -200,7 +193,6 @@ export async function registerRoutes(
         else if (platform === "vimeo") oembedUrl = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(resolvedUrl)}`;
 
         if (oembedUrl) {
-          console.log("Fetching metadata from:", oembedUrl);
           const response = await fetch(oembedUrl, {
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -208,12 +200,9 @@ export async function registerRoutes(
           });
           if (response.ok) {
             const data = await response.json() as any;
-            console.log("Metadata received:", { title: data.title, has_thumb: !!data.thumbnail_url });
             metadata.title = data.title || metadata.title;
             metadata.thumbnail = data.thumbnail_url || "";
             metadata.authorName = data.author_name || "";
-          } else {
-            console.log("oEmbed request failed with status:", response.status);
           }
         }
 
@@ -223,28 +212,22 @@ export async function registerRoutes(
           const videoId = ytMatch ? ytMatch[1] : null;
           if (videoId) {
             metadata.thumbnail = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
-            console.log("YouTube thumbnail URL:", metadata.thumbnail);
           }
         }
 
-        // Clean up title: remove notification counters like "(19)" and platform suffixes
+        // Clean up title: remove notification counters and platform suffixes
         if (metadata.title) {
-          // Remove leading notification counter: (19), (2), etc.
           metadata.title = metadata.title.replace(/^\(\d+\)\s*/, '');
-          // Remove trailing " - YouTube", " - TikTok", etc.
           metadata.title = metadata.title.replace(/\s*-\s*(YouTube|TikTok|Vimeo|Instagram)\s*$/i, '');
           metadata.title = metadata.title.trim();
-          console.log("Cleaned title:", metadata.title);
         }
       } catch (e) {
         console.error("Metadata extraction error:", e);
       }
       
-      console.log("=== FINAL METADATA TO SEND ===");
-      console.log(JSON.stringify(metadata, null, 2));
       res.json(metadata);
     } catch (err) {
-      console.error("=== METADATA API ERROR ===", err);
+      console.error("Metadata API error:", err);
       res.status(400).json({ message: "Invalid URL" });
     }
   });

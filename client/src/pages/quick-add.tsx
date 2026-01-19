@@ -10,14 +10,8 @@ import { Card, CardContent } from "@/components/ui/card";
 export default function QuickAdd() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [errorMsg, setErrorMsg] = useState("");
-  const [debugLogs, setDebugLogs] = useState<string[]>([]);
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
-
-  const addLog = (msg: string) => {
-    console.log(msg);
-    setDebugLogs(prev => [...prev, `${new Date().toLocaleTimeString()}: ${msg}`]);
-  };
 
   useEffect(() => {
     // If auth is loading, wait
@@ -60,33 +54,35 @@ export default function QuickAdd() {
         };
 
         try {
-          addLog("Fetching metadata for URL: " + url);
           const metadataResponseRaw = await apiRequest("POST", "/api/videos/metadata", { url });
           const metadataResponse = await metadataResponseRaw.json();
-          addLog("Metadata response: " + JSON.stringify(metadataResponse));
 
           if (metadataResponse && metadataResponse.title) {
-            // ALWAYS use metadata title, never the URL title (which may have (19) prefix)
             videoData.title = metadataResponse.title || "Video sin título";
             videoData.thumbnailUrl = metadataResponse.thumbnail || null;
             videoData.platform = metadataResponse.platform || "other";
-            addLog("Using metadata - Title: " + videoData.title);
-            addLog("Using metadata - Thumbnail: " + (videoData.thumbnailUrl || "NONE"));
           } else {
             videoData.title = "Video sin título";
-            addLog("No metadata response, using default title");
           }
         } catch (metaError) {
-          addLog("ERROR fetching metadata: " + metaError);
-          // Continue with basic data if metadata fails
+          console.error("Metadata fetch failed:", metaError);
         }
 
-        addLog("Saving video with title: " + videoData.title);
+
         // Now save the video with metadata
         await apiRequest("POST", "/api/videos", videoData);
 
         // Invalidate queries so main dashboard updates if open
         queryClient.invalidateQueries({ queryKey: ["/api/videos"] });
+
+        // If opened from bookmarklet, refresh the main app window
+        if (window.opener && !window.opener.closed) {
+          try {
+            window.opener.location.reload();
+          } catch (e) {
+            console.log("Could not reload opener window:", e);
+          }
+        }
 
         setStatus('success');
 
@@ -96,7 +92,7 @@ export default function QuickAdd() {
         }, 5000);
 
       } catch (e) {
-        addLog("ERROR: " + e);
+        console.error("Quick-add error:", e);
         setStatus('error');
         setErrorMsg("Error al añadir el video. Podría estar duplicado.");
       }
@@ -175,16 +171,6 @@ export default function QuickAdd() {
             </>
           )}
         </CardContent>
-
-        {/* DEBUG PANEL */}
-        {debugLogs.length > 0 && (
-          <div className="p-4 bg-zinc-950 border-t border-zinc-800 max-h-64 overflow-y-auto">
-            <p className="text-xs font-bold text-amber-500 mb-2">DEBUG LOGS:</p>
-            {debugLogs.map((log, i) => (
-              <p key={i} className="text-xs text-zinc-400 font-mono mb-1">{log}</p>
-            ))}
-          </div>
-        )}
       </Card>
     </div>
   );

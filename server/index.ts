@@ -77,7 +77,6 @@ app.use((req, res, next) => {
 // This ensures absolute priority over Vite and all other middlewares
 app.get("/bookmarklet/add", (req, res) => {
   const { url, title } = req.query;
-  console.log(">>> BOOKMARKLET HIT:", { url, title });
   
   if (!url) {
     return res.status(400).send("URL requerida");
@@ -85,7 +84,6 @@ app.get("/bookmarklet/add", (req, res) => {
   
   // Direct redirect to quick-add
   const redirectUrl = `/quick-add?url=${encodeURIComponent(url as string)}&title=${encodeURIComponent((title as string) || '')}&source=bookmarklet`;
-  console.log(">>> Redirecting to:", redirectUrl);
   return res.redirect(redirectUrl);
 });
 
