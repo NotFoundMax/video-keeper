@@ -19,15 +19,17 @@ export async function registerRoutes(
   app.get("/api/videos", isAuthenticated, async (req, res) => {
     // @ts-ignore
     const userId = req.user!.id;
-    const { search, platform, favorite, category, folderId } = req.query;
+    const { search, platform, favorite, category, folderId, tagId } = req.query;
     const folderIdNum = folderId ? Number(folderId) : undefined;
+    const tagIdNum = tagId ? Number(tagId) : undefined;
     
     const videos = await storage.getVideos(userId, {
       search: search as string,
       platform: platform as string,
       category: category as string,
       isFavorite: favorite === 'true' ? true : undefined,
-      folderId: (folderIdNum !== undefined && !isNaN(folderIdNum)) ? folderIdNum : undefined
+      folderId: (folderIdNum !== undefined && !isNaN(folderIdNum)) ? folderIdNum : undefined,
+      tagId: (tagIdNum !== undefined && !isNaN(tagIdNum)) ? tagIdNum : undefined
     });
     res.json(videos);
   });
@@ -113,6 +115,23 @@ export async function registerRoutes(
     const tagId = Number(req.params.tagId);
     if (isNaN(folderId) || isNaN(tagId)) return res.status(400).json({ message: "Invalid ID" });
     await storage.removeTagFromFolder(folderId, tagId);
+    res.status(204).send();
+  });
+
+  // Video Tag Routes
+  app.post("/api/videos/:videoId/tags/:tagId", isAuthenticated, async (req, res) => {
+    const videoId = Number(req.params.videoId);
+    const tagId = Number(req.params.tagId);
+    if (isNaN(videoId) || isNaN(tagId)) return res.status(400).json({ message: "Invalid ID" });
+    await storage.addTagToVideo(videoId, tagId);
+    res.status(204).send();
+  });
+
+  app.delete("/api/videos/:videoId/tags/:tagId", isAuthenticated, async (req, res) => {
+    const videoId = Number(req.params.videoId);
+    const tagId = Number(req.params.tagId);
+    if (isNaN(videoId) || isNaN(tagId)) return res.status(400).json({ message: "Invalid ID" });
+    await storage.removeTagFromVideo(videoId, tagId);
     res.status(204).send();
   });
 

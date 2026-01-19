@@ -8,7 +8,7 @@ import { apiRequest } from "@/lib/queryClient";
 // HOOKS
 // ============================================
 
-export function useVideos(filters?: { search?: string; platform?: string; favorite?: string; category?: string; folderId?: number }) {
+export function useVideos(filters?: { search?: string; platform?: string; favorite?: string; category?: string; folderId?: number; tagId?: number }) {
   const queryKey = ["/api/videos", filters];
   return useQuery({
     queryKey,
@@ -19,6 +19,7 @@ export function useVideos(filters?: { search?: string; platform?: string; favori
       if (filters?.favorite) params.append("favorite", filters.favorite);
       if (filters?.category && filters.category !== "all") params.append("category", filters.category);
       if (filters?.folderId) params.append("folderId", filters.folderId.toString());
+      if (filters?.tagId) params.append("tagId", filters.tagId.toString());
       
       const url = `/api/videos?${params.toString()}`;
       const res = await fetch(url, { credentials: "include" });

@@ -4,6 +4,7 @@ import {
   folders,
   tags,
   folderTags,
+  videoTags,
   type CreateVideoRequest,
   type UpdateVideoRequest,
   type Video,
@@ -16,7 +17,7 @@ import { eq, and, desc, ilike, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // Videos
-  getVideos(userId: number, filters?: { search?: string; platform?: string; isFavorite?: boolean; category?: string; folderId?: number }): Promise<Video[]>;
+  getVideos(userId: number, filters?: { search?: string; platform?: string; isFavorite?: boolean; category?: string; folderId?: number; tagId?: number }): Promise<(Video & { tags: Tag[] })[]>;
   getVideo(id: number): Promise<Video | undefined>;
   findByUrl(userId: number, url: string): Promise<Video | undefined>;
   createVideo(userId: number, video: CreateVideoRequest): Promise<Video>;
@@ -39,10 +40,14 @@ export interface IStorage {
   // Folder Tags
   addTagToFolder(folderId: number, tagId: number): Promise<void>;
   removeTagFromFolder(folderId: number, tagId: number): Promise<void>;
+
+  // Video Tags
+  addTagToVideo(videoId: number, tagId: number): Promise<void>;
+  removeTagFromVideo(videoId: number, tagId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
-  async getVideos(userId: number, filters?: { search?: string; platform?: string; isFavorite?: boolean; category?: string; folderId?: number }): Promise<Video[]> {
+  async getVideos(userId: number, filters?: { search?: string; platform?: string; isFavorite?: boolean; category?: string; folderId?: number; tagId?: number }): Promise<(Video & { tags: Tag[] })[]> {
     const clauses = [eq(videos.userId, userId)];
     
     if (filters?.platform && filters.platform !== "all") {
@@ -61,15 +66,40 @@ export class DatabaseStorage implements IStorage {
       clauses.push(eq(videos.folderId, filters.folderId));
     }
 
+    if (filters?.tagId !== undefined && !isNaN(filters.tagId)) {
+      const videosWithTag = db.select({ id: videoTags.videoId })
+                              .from(videoTags)
+                              .where(eq(videoTags.tagId, filters.tagId));
+      clauses.push(inArray(videos.id, videosWithTag));
+    }
+
     if (filters?.search) {
       clauses.push(ilike(videos.title, `%${filters.search}%`));
     }
 
-    return await db
+    const allVideos = await db
       .select()
       .from(videos)
       .where(and(...clauses))
       .orderBy(desc(videos.createdAt));
+
+    // Efficiently fetch tags for all videos
+    const videosWithTags = await Promise.all(allVideos.map(async (video) => {
+      const tagsForVideo = await db
+        .select({
+          id: tags.id,
+          userId: tags.userId,
+          name: tags.name,
+          color: tags.color
+        })
+        .from(videoTags)
+        .innerJoin(tags, eq(videoTags.tagId, tags.id))
+        .where(eq(videoTags.videoId, video.id));
+      
+      return { ...video, tags: tagsForVideo };
+    }));
+
+    return videosWithTags;
   }
 
   async getVideo(id: number): Promise<Video | undefined> {
@@ -203,6 +233,15 @@ export class DatabaseStorage implements IStorage {
 
   async removeTagFromFolder(folderId: number, tagId: number): Promise<void> {
     await db.delete(folderTags).where(and(eq(folderTags.folderId, folderId), eq(folderTags.tagId, tagId)));
+  }
+
+  // Video Tags
+  async addTagToVideo(videoId: number, tagId: number): Promise<void> {
+    await db.insert(videoTags).values({ videoId, tagId }).onConflictDoNothing();
+  }
+
+  async removeTagFromVideo(videoId: number, tagId: number): Promise<void> {
+    await db.delete(videoTags).where(and(eq(videoTags.videoId, videoId), eq(videoTags.tagId, tagId)));
   }
 }
 

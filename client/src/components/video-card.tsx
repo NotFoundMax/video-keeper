@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { type Video } from "@shared/schema";
+import { type Video, type Tag } from "@shared/schema";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,20 +9,31 @@ import {
   Play,
   Pencil,
   XCircle,
-  Youtube
+  Youtube,
+  Plus,
+  Tag as TagIcon,
+  CheckCircle2
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import ReactPlayer from "react-player";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { useFolders } from "@/hooks/use-folders";
 import { useVideoProgress } from "@/hooks/use-video-progress";
+import { useTags } from "@/hooks/use-tags";
+import { useVideoTags } from "@/hooks/use-video-tags";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 const Player = ReactPlayer as any;
 
+interface VideoWithTags extends Video {
+  tags?: Tag[];
+}
+
 interface VideoCardProps {
-  video: Video;
+  video: VideoWithTags;
   onDelete: (id: number) => void;
   onUpdate: (id: number, updates: Partial<Video>) => void;
 }
@@ -30,6 +41,7 @@ interface VideoCardProps {
 export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
   const [isPlayingInline, setIsPlayingInline] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isTagDialogOpen, setIsTagDialogOpen] = useState(false);
   const [localTimestamp, setLocalTimestamp] = useState(video.lastTimestamp || 0);
 
   useEffect(() => {
@@ -37,6 +49,8 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
   }, [video.lastTimestamp]);
 
   const { data: folders } = useFolders();
+  const { data: allTags } = useTags();
+  const { addTag, removeTag } = useVideoTags(video.id);
   const playerRef = useRef<any>(null);
 
   // Auto-save video progress
@@ -307,6 +321,45 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
               </Button>
             </div>
           </div>
+
+          {/* Metadata: Author & Duration */}
+          {(video.authorName || (video.duration && video.duration > 0)) && (
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-400 -mt-1">
+              {video.authorName && (
+                <span className="truncate max-w-[150px]">{video.authorName}</span>
+              )}
+              {video.authorName && video.duration && <span>•</span>}
+              {video.duration && video.duration > 0 && (
+                <span>{Math.floor(video.duration / 60)}:{String(video.duration % 60).padStart(2, '0')}</span>
+              )}
+            </div>
+          )}
+
+          {/* Tags List */}
+          <div className="w-full">
+            <ScrollArea className="w-full whitespace-nowrap pb-2">
+              <div className="flex w-max space-x-2">
+                {video.tags?.map(tag => (
+                  <Badge
+                    key={tag.id}
+                    variant="outline"
+                    className="text-[10px] font-black px-2 py-0.5 rounded-md border-0"
+                    style={{ backgroundColor: (tag.color || '#3b82f6') + '15', color: tag.color || '#3b82f6' }}
+                  >
+                    #{tag.name.toUpperCase()}
+                  </Badge>
+                ))}
+                <button
+                  onClick={() => setIsTagDialogOpen(true)}
+                  className="h-5 px-2 rounded-md bg-slate-100 text-slate-400 flex items-center gap-1 text-[10px] font-bold hover:bg-primary/10 hover:text-primary transition-colors"
+                >
+                  <Plus className="w-3 h-3" />
+                  TAGS
+                </button>
+              </div>
+              <ScrollBar orientation="horizontal" className="h-1.5 opacity-0 hover:opacity-100" />
+            </ScrollArea>
+          </div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
               {video.createdAt && formatDistanceToNow(new Date(video.createdAt), { addSuffix: true, locale: es })}
@@ -456,6 +509,57 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Tag Management Dialog */}
+      <Dialog open={isTagDialogOpen} onOpenChange={setIsTagDialogOpen}>
+        <DialogContent className="sm:max-w-md rounded-[2.5rem] p-8 bg-white border-none shadow-2xl">
+          <DialogHeader className="mb-4">
+            <DialogTitle className="text-2xl font-black text-slate-900 text-center">
+              Gestionar Etiquetas
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Etiquetas Disponibles</label>
+              <ScrollArea className="h-40 w-full rounded-2xl bg-slate-50 p-4">
+                <div className="flex flex-wrap gap-2">
+                  {allTags?.map(tag => {
+                    const isSelected = video.tags?.some(t => t.id === tag.id);
+                    return (
+                      <Badge
+                        key={tag.id}
+                        variant={isSelected ? "default" : "outline"}
+                        className={`cursor-pointer transition-all font-bold ${isSelected ? 'shadow-md' : 'hover:bg-slate-200 border-slate-200'}`}
+                        style={isSelected ? { backgroundColor: tag.color || '#3b82f6', color: 'white' } : { borderColor: (tag.color || '#3b82f6') + '40', color: tag.color || '#64748b' }}
+                        onClick={() => {
+                          if (isSelected) {
+                            removeTag.mutate(tag.id);
+                          } else {
+                            addTag.mutate(tag.id);
+                          }
+                        }}
+                      >
+                        {isSelected && <CheckCircle2 className="w-3 h-3 mr-1" />}
+                        #{tag.name}
+                      </Badge>
+                    );
+                  })}
+                  {!allTags?.length && (
+                    <p className="text-slate-400 text-sm font-medium italic w-full text-center py-8">
+                      No hay etiquetas creadas aún.
+                    </p>
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+          </div>
+
+          <Button onClick={() => setIsTagDialogOpen(false)} className="w-full h-14 rounded-2xl font-black text-lg shadow-lg shadow-primary/20 mt-2">
+            Listo
+          </Button>
         </DialogContent>
       </Dialog>
     </>

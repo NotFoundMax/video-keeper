@@ -1,6 +1,9 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { useGlobalShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { KeyboardShortcutsHelp } from "@/components/keyboard-shortcuts-help";
 import {
   Home,
   PlusCircle,
@@ -23,6 +26,9 @@ export function LayoutShell({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const { user, logout } = useAuth();
 
+  // Enable global keyboard shortcuts
+  useGlobalShortcuts();
+
   const navItems = [
     { href: "/", label: "Inicio", icon: Home },
     { href: "/add", label: "Añadir", icon: PlusCircle },
@@ -31,9 +37,9 @@ export function LayoutShell({ children }: { children: ReactNode }) {
   ];
 
   return (
-    <div className="min-h-screen bg-[#F8F9FB] flex flex-col md:flex-row">
+    <div className="min-h-screen bg-[#F8F9FB] dark:bg-slate-950 flex flex-col md:flex-row transition-colors">
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-64 flex-col border-r border-border bg-white h-screen sticky top-0 p-6 z-20 shadow-sm">
+      <aside className="hidden md:flex w-64 flex-col border-r border-border bg-white dark:bg-slate-900 h-screen sticky top-0 p-6 z-20 shadow-sm">
         <div className="flex items-center gap-3 mb-10 px-2">
           <div className="p-2 rounded-xl bg-primary text-white shadow-lg shadow-primary/20">
             <Video className="w-6 h-6" />
@@ -60,18 +66,19 @@ export function LayoutShell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        <div className="border-t border-border pt-6 mt-auto">
-          <div className="flex items-center gap-3 mb-4 px-2">
+        <div className="border-t border-border pt-6 mt-auto space-y-4">
+          <div className="flex items-center gap-3 px-2">
             <Avatar className="h-10 w-10 border-2 border-primary/10">
               <AvatarImage src={user?.profileImageUrl ?? undefined} />
               <AvatarFallback className="bg-primary/10 text-primary">
                 {user?.firstName?.[0]}{user?.lastName?.[0]}
               </AvatarFallback>
             </Avatar>
-            <div className="overflow-hidden">
+            <div className="overflow-hidden flex-1">
               <p className="text-sm font-bold truncate">{user?.firstName}</p>
               <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
             </div>
+            <ThemeToggle />
           </div>
           <Button
             variant="ghost"
@@ -109,6 +116,9 @@ export function LayoutShell({ children }: { children: ReactNode }) {
           })}
         </div>
       </nav>
+
+      {/* Keyboard Shortcuts Help */}
+      <KeyboardShortcutsHelp />
     </div>
   );
 }

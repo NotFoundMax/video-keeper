@@ -10,6 +10,7 @@ export const folders = pgTable("folders", {
   userId: integer("user_id").notNull().references(() => users.id),
   name: text("name").notNull(),
   description: text("description"),
+  coverUrl: text("cover_url"), // Custom cover image for the folder
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -45,6 +46,15 @@ export const videos = pgTable("videos", {
   lastTimestamp: integer("last_timestamp").default(0), // Saved progress in seconds
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+export const videoTags = pgTable("video_tags", {
+  videoId: integer("video_id").notNull().references(() => videos.id, { onDelete: 'cascade' }),
+  tagId: integer("tag_id").notNull().references(() => tags.id, { onDelete: 'cascade' }),
+}, (table) => [
+  {
+    pk: [table.videoId, table.tagId],
+  }
+]);
 
 export const insertFolderSchema = createInsertSchema(folders).omit({ 
   id: true, 

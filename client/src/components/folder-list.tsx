@@ -27,6 +27,7 @@ export function FolderList({ selectedFolderId, onSelectFolder, layout = "vertica
   const removeTagFromFolder = useRemoveTagFromFolder();
 
   const [newFolderName, setNewFolderName] = useState("");
+  const [newFolderCoverUrl, setNewFolderCoverUrl] = useState("");
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState("#3b82f6");
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
@@ -34,9 +35,13 @@ export function FolderList({ selectedFolderId, onSelectFolder, layout = "vertica
   const handleCreateFolder = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newFolderName.trim()) return;
-    createFolder.mutate({ name: newFolderName.trim() }, {
+    createFolder.mutate({
+      name: newFolderName.trim(),
+      coverUrl: newFolderCoverUrl.trim() || null
+    }, {
       onSuccess: () => {
         setNewFolderName("");
+        setNewFolderCoverUrl("");
         setIsCreateFolderOpen(false);
       }
     });
@@ -62,8 +67,12 @@ export function FolderList({ selectedFolderId, onSelectFolder, layout = "vertica
               : "bg-white text-slate-900 shadow-[0_8px_30px_rgb(0,0,0,0.04)]"
               }`}
           >
-            <div className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center ${selectedFolderId === folder.id ? "bg-white/20" : "bg-indigo-50"}`}>
-              <FolderIcon className={`w-8 h-8 ${selectedFolderId === folder.id ? "text-white" : "text-indigo-500"}`} />
+            <div className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center overflow-hidden ${selectedFolderId === folder.id ? "bg-white/20" : "bg-indigo-50"}`}>
+              {folder.coverUrl ? (
+                <img src={folder.coverUrl} alt={folder.name} className="w-full h-full object-cover" />
+              ) : (
+                <FolderIcon className={`w-8 h-8 ${selectedFolderId === folder.id ? "text-white" : "text-indigo-500"}`} />
+              )}
             </div>
             <div>
               <h3 className="font-black text-base leading-tight truncate w-32">{folder.name}</h3>
@@ -96,15 +105,26 @@ export function FolderList({ selectedFolderId, onSelectFolder, layout = "vertica
               <DialogTitle className="text-2xl font-bold">Crear Nueva Carpeta</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleCreateFolder} className="space-y-6 pt-4">
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Nombre de la carpeta</label>
-                <Input
-                  value={newFolderName}
-                  onChange={(e) => setNewFolderName(e.target.value)}
-                  placeholder="Ej: Recetas, Tutoriales..."
-                  className="h-14 rounded-2xl bg-slate-50 border-none focus-visible:ring-primary/20"
-                  autoFocus
-                />
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Nombre</label>
+                  <Input
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                    placeholder="Ej: Recetas, Tutoriales..."
+                    className="h-14 rounded-2xl bg-slate-50 border-none focus-visible:ring-primary/20"
+                    autoFocus
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">URL Portada (Opcional)</label>
+                  <Input
+                    value={newFolderCoverUrl}
+                    onChange={(e) => setNewFolderCoverUrl(e.target.value)}
+                    placeholder="https://..."
+                    className="h-14 rounded-2xl bg-slate-50 border-none focus-visible:ring-primary/20"
+                  />
+                </div>
               </div>
               <DialogFooter>
                 <Button type="submit" size="lg" className="w-full rounded-2xl h-14 font-bold text-lg shadow-lg shadow-primary/20" disabled={createFolder.isPending}>
@@ -147,8 +167,12 @@ export function FolderList({ selectedFolderId, onSelectFolder, layout = "vertica
                   : "bg-white border border-slate-100 text-slate-600"
                   }`}
               >
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${selectedFolderId === folder.id ? "bg-white/20" : "bg-slate-50"}`}>
-                  <FolderIcon className="w-5 h-5" />
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden ${selectedFolderId === folder.id ? "bg-white/20" : "bg-slate-50"}`}>
+                  {folder.coverUrl ? (
+                    <img src={folder.coverUrl} alt={folder.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <FolderIcon className="w-5 h-5" />
+                  )}
                 </div>
                 <div className="flex-1 overflow-hidden">
                   <span className="font-bold truncate block">{folder.name}</span>

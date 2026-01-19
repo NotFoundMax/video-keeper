@@ -8,6 +8,13 @@
       "when": 1768806823009,
       "tag": "0000_salty_thunderbolts",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1768808376954,
+      "tag": "0001_hot_bulldozer",
+      "breakpoints": true
     }
   ]
 }
