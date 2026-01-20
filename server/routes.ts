@@ -258,6 +258,7 @@ export async function registerRoutes(
       let metadata = { 
         title: "Video", 
         thumbnail: "", 
+        url: resolvedUrl,
         authorName: "", 
         duration: 0,
         platform, 
@@ -433,6 +434,27 @@ export async function registerRoutes(
               const posterMatch = html.match(/<video[^>]+poster=["']([^"']+)["']/i);
               if (posterMatch) {
                 metadata.thumbnail = posterMatch[1];
+              }
+            }
+
+            // 6. DETECT DIRECT VIDEO SOURCE (Critical for generic sites like Footballia/JWPlayer)
+            // Look for MP4, WebM in <source>, <video> or JSON configs
+            const videoSrcMatch = html.match(/<source[^>]+src=["']([^"']+\.(mp4|webm|ogg)[^"']*)["']/i) ||
+                                 html.match(/<video[^>]+src=["']([^"']+\.(mp4|webm|ogg)[^"']*)["']/i) ||
+                                 html.match(/["']source_file["']\s*:\s*["']([^"']+\.(mp4|webm|ogg)[^"']*)["']/i) ||
+                                 html.match(/["']file["']\s*:\s*["']([^"']+\.(mp4|webm|ogg)[^"']*)["']/i);
+
+            if (videoSrcMatch && videoSrcMatch[1]) {
+              let foundUrl = videoSrcMatch[1].replace(/\\/g, ''); // Clean escaped slashes
+              if (foundUrl.startsWith('//')) foundUrl = 'https:' + foundUrl;
+              else if (foundUrl.startsWith('/') && !foundUrl.startsWith('//')) {
+                const urlObj = new URL(resolvedUrl);
+                foundUrl = `${urlObj.protocol}//${urlObj.host}${foundUrl}`;
+              }
+              // Only override if it looks like a valid URL or path
+              if (foundUrl.includes('http') || foundUrl.startsWith('/')) {
+                console.log(`[Scraper] Found direct video source: ${foundUrl}`);
+                metadata.url = foundUrl; 
               }
             }
             

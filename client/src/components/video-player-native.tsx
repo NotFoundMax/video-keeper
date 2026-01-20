@@ -173,46 +173,27 @@ export function VideoPlayerNative({
         <InstagramEmbed url={video.url} embedHtml={video.embedHtml} />
       ) : videoInfo.type === 'facebook' ? (
         <div className="w-full h-full bg-black">
-          <Player
-            url={video.url}
-            width="100%"
-            height="100%"
-            playing={isActive && autoPlay}
-            controls={true}
-            muted={false}
-            volume={1}
-            ref={playerRef}
-            onEnded={onEnded}
-            onProgress={({ playedSeconds }: any) => {
-              if (onProgress) onProgress(playedSeconds);
-            }}
-            onPause={onPause}
-            onPlay={onPlay}
-            onError={onError}
-            config={{
-              facebook: {
-                appId: '1305417370342616', // Optional: standard FB app ID or user provided
-                attributes: {
-                  'data-show-text': 'false',
-                  'data-show-captions': 'false'
-                }
-              }
-            }}
+          <iframe
+            src={`https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(video.url)}&show_text=0&autoplay=${autoPlay ? 1 : 0}&mute=0`}
+            className="w-full h-full border-0"
+            allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+            allowFullScreen
           />
         </div>
       ) : videoInfo.type === 'twitch' ? (
-        <div className="w-full h-full bg-black">
+        <div className="w-full h-full bg-black block" style={{ opacity: 1, visibility: 'visible' }}>
           {(() => {
             const isClip = video.url.includes('/clip/') || video.url.includes('clips.twitch.tv');
             const isVideo = video.url.includes('/videos/');
             const parent = window.location.hostname;
+            const allowPolicies = "autoplay; fullscreen; encrypted-media; picture-in-picture; keyboard-map; web-share";
 
             if (isClip) {
               return (
                 <iframe
                   src={`https://clips.twitch.tv/embed?clip=${videoInfo.id}&parent=${parent}&autoplay=${autoPlay}`}
                   className="w-full h-full border-0"
-                  allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+                  allow={allowPolicies}
                   allowFullScreen
                 />
               );
@@ -225,7 +206,7 @@ export function VideoPlayerNative({
                 <iframe
                   src={`https://player.twitch.tv/?${videoParam}&parent=${parent}&autoplay=${autoPlay}&muted=false`}
                   className="w-full h-full border-0"
-                  allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+                  allow={allowPolicies}
                   allowFullScreen
                 />
               );
@@ -242,30 +223,63 @@ export function VideoPlayerNative({
         </div>
       ) : (
         <div className="w-full h-full bg-black">
-          <Player
-            url={video.url}
-            width="100%"
-            height="100%"
-            playing={isActive && autoPlay}
-            controls={true}
-            muted={false}
-            volume={1}
-            ref={playerRef}
-            onEnded={onEnded}
-            onProgress={({ playedSeconds }: any) => {
-              if (onProgress) onProgress(playedSeconds);
-            }}
-            onPause={onPause}
-            onPlay={onPlay}
-            onError={onError}
-            config={{
-              file: {
-                attributes: {
-                  style: { width: '100%', height: '100%', objectFit: 'contain' }
-                }
-              }
-            }}
-          />
+          {(() => {
+            const isDirectFile = /\.(mp4|webm|ogg|m4v)($|\?)/i.test(video.url);
+
+            if (isDirectFile) {
+              return (
+                <video
+                  key={video.url}
+                  src={video.url}
+                  className="w-full h-full object-contain"
+                  controls
+                  autoPlay={isActive && autoPlay}
+                  onEnded={onEnded}
+                  onPause={onPause}
+                  onPlay={onPlay}
+                  onError={onError}
+                  onTimeUpdate={(e: any) => {
+                    if (onProgress) onProgress(e.target.currentTime);
+                  }}
+                  ref={(node) => {
+                    if (node && video.lastTimestamp) {
+                      // Only set once on mount if we have a timestamp
+                      if (Math.abs(node.currentTime - video.lastTimestamp) > 1) {
+                        node.currentTime = video.lastTimestamp;
+                      }
+                    }
+                  }}
+                />
+              );
+            }
+
+            return (
+              <Player
+                url={video.url}
+                width="100%"
+                height="100%"
+                playing={isActive && autoPlay}
+                controls={true}
+                muted={false}
+                volume={1}
+                ref={playerRef}
+                onEnded={onEnded}
+                onProgress={({ playedSeconds }: any) => {
+                  if (onProgress) onProgress(playedSeconds);
+                }}
+                onPause={onPause}
+                onPlay={onPlay}
+                onError={onError}
+                config={{
+                  file: {
+                    attributes: {
+                      style: { width: '100%', height: '100%', objectFit: 'contain' }
+                    }
+                  }
+                }}
+              />
+            );
+          })()}
         </div>
       )}
     </div>
