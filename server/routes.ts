@@ -19,17 +19,24 @@ export async function registerRoutes(
   app.get("/api/videos", isAuthenticated, async (req, res) => {
     // @ts-ignore
     const userId = req.user!.id;
-    const { search, platform, favorite, category, folderId, tagId } = req.query;
+    const { search, favorite, folderId, tagIds } = req.query;
     const folderIdNum = folderId ? Number(folderId) : undefined;
-    const tagIdNum = tagId ? Number(tagId) : undefined;
+    
+    // Support either multiple tagIds parameters or a comma-separated string
+    let tagIdArray: number[] = [];
+    if (tagIds) {
+      if (Array.isArray(tagIds)) {
+        tagIdArray = tagIds.map(Number);
+      } else if (typeof tagIds === 'string') {
+        tagIdArray = tagIds.split(',').map(Number);
+      }
+    }
     
     const videos = await storage.getVideos(userId, {
       search: search as string,
-      platform: platform as string,
-      category: category as string,
       isFavorite: favorite === 'true' ? true : undefined,
       folderId: (folderIdNum !== undefined && !isNaN(folderIdNum)) ? folderIdNum : undefined,
-      tagId: (tagIdNum !== undefined && !isNaN(tagIdNum)) ? tagIdNum : undefined
+      tagIds: tagIdArray.length > 0 ? tagIdArray : undefined
     });
     res.json(videos);
   });
@@ -226,6 +233,8 @@ export async function registerRoutes(
       else if (urlStr.includes("instagram.com")) platform = "instagram";
       else if (urlStr.includes("vimeo.com")) platform = "vimeo";
       else if (urlStr.includes("facebook.com") || urlStr.includes("fb.watch")) platform = "facebook";
+      else if (urlStr.includes("pinterest.com") || urlStr.includes("pin.it")) platform = "pinterest";
+      else if (urlStr.includes("twitch.tv")) platform = "twitch";
 
       const resolvedUrl = await resolveUrlRedirects(url);
       
@@ -249,6 +258,8 @@ export async function registerRoutes(
         else if (platform === "tiktok") oembedUrl = `https://www.tiktok.com/oembed?url=${encodeURIComponent(resolvedUrl)}`;
         else if (platform === "vimeo") oembedUrl = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(resolvedUrl)}`;
         else if (platform === "instagram") oembedUrl = `https://api.instagram.com/oembed/?url=${encodeURIComponent(resolvedUrl)}`;
+        else if (platform === "pinterest") oembedUrl = `https://www.pinterest.com/oembed.json?url=${encodeURIComponent(resolvedUrl)}`;
+        else if (platform === "twitch") oembedUrl = `https://www.twitch.tv/oembed?url=${encodeURIComponent(resolvedUrl)}`;
 
         if (oembedUrl) {
           const response = await fetch(oembedUrl, {
@@ -264,17 +275,21 @@ export async function registerRoutes(
             
             // Extract duration if available
             if (data.duration) {
-              metadata.duration = parseInt(data.duration);
+              metadata.duration = Math.floor(parseInt(data.duration));
             }
             // Vimeo returns duration differently
             if (platform === "vimeo" && data.video_duration) {
-              metadata.duration = data.video_duration;
+              metadata.duration = Math.floor(data.video_duration);
+            }
+            // YouTube sometimes uses duration in seconds (integer)
+            if (platform === "youtube" && typeof data.duration === 'number') {
+              metadata.duration = data.duration;
             }
           }
         }
 
-        // Fallback for Facebook, Instagram or if oEmbed failed
-        if (!metadata.thumbnail && (platform === "facebook" || platform === "instagram" || platform === "other")) {
+        // Fallback for Facebook, Instagram, Twitch or if oEmbed failed
+        if (!metadata.thumbnail && (platform === "facebook" || platform === "instagram" || platform === "twitch" || platform === "other")) {
           let fetchUrl = resolvedUrl;
           let userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
           
@@ -310,7 +325,7 @@ export async function registerRoutes(
           if (response.ok) {
             const html = await response.text();
             
-            // Extract og:image
+            // 1. Extract og:image
             const ogImageMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) || 
                                 html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i) ||
                                 html.match(/["']thumbnail_url["']:\s*["']([^"']+)["']/i); // Instagram JSON fallback
@@ -318,12 +333,85 @@ export async function registerRoutes(
               metadata.thumbnail = ogImageMatch[1].replace(/&amp;/g, '&').replace(/\\u0026/g, '&');
             }
             
-            // Extract og:title
-            const ogTitleMatch = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) || 
-                                html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i) ||
-                                html.match(/<title>([^<]+)<\/title>/i);
-            if (ogTitleMatch) {
-              metadata.title = ogTitleMatch[1].replace(/&amp;/g, '&').trim();
+            // 2. Fallback to twitter:image
+            if (!metadata.thumbnail) {
+              const twitterImageMatch = html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i) ||
+                                       html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i);
+              if (twitterImageMatch) {
+                metadata.thumbnail = twitterImageMatch[1].replace(/&amp;/g, '&');
+              }
+            }
+
+            // 3. Fallback to oEmbed discovery
+            if (!metadata.thumbnail) {
+              const oembedDiscoveryMatch = html.match(/<link[^>]+type=["']application\/json\+oembed["'][^>]+href=["']([^"']+)["']/i);
+              if (oembedDiscoveryMatch) {
+                try {
+                  const oembedRes = await fetch(oembedDiscoveryMatch[1].replace(/&amp;/g, '&'));
+                  if (oembedRes.ok) {
+                    const oembedData = await oembedRes.json() as any;
+                    metadata.thumbnail = oembedData.thumbnail_url || "";
+                    metadata.title = oembedData.title || metadata.title;
+                  }
+                } catch (e) {}
+              }
+            }
+
+            // 4. Fallback to JSON-LD
+            if (!metadata.thumbnail) {
+              const jsonLdMatch = html.match(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+              if (jsonLdMatch) {
+                for (const scriptTag of jsonLdMatch) {
+                  try {
+                    const contentJson = scriptTag.replace(/<script[^>]*>|<\/script>/gi, '');
+                    const data = JSON.parse(contentJson);
+                    const items = Array.isArray(data) ? data : [data];
+                    for (const item of items) {
+                      const videoObj = item['@type'] === 'VideoObject' ? item : (item['@graph']?.find((g: any) => g['@type'] === 'VideoObject'));
+                      if (videoObj) {
+                        if (videoObj.thumbnailUrl) {
+                          metadata.thumbnail = Array.isArray(videoObj.thumbnailUrl) ? videoObj.thumbnailUrl[0] : videoObj.thumbnailUrl;
+                        }
+                        if (videoObj.name) metadata.title = videoObj.name;
+                        
+                        // Extract duration from ISO 8601 (PT1M30S) if provided
+                        if (videoObj.duration) {
+                          const durationStr = videoObj.duration;
+                          const match = durationStr.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+                          if (match) {
+                            const hours = parseInt(match[1] || "0");
+                            const mins = parseInt(match[2] || "0");
+                            const secs = parseInt(match[3] || "0");
+                            metadata.duration = (hours * 3600) + (mins * 60) + secs;
+                          } else if (!isNaN(parseInt(durationStr))) {
+                            metadata.duration = parseInt(durationStr);
+                          }
+                        }
+                        break;
+                      }
+                    }
+                  } catch (e) {}
+                  if (metadata.thumbnail) break;
+                }
+              }
+            }
+
+            // 5. Fallback to <video poster="...">
+            if (!metadata.thumbnail) {
+              const posterMatch = html.match(/<video[^>]+poster=["']([^"']+)["']/i);
+              if (posterMatch) {
+                metadata.thumbnail = posterMatch[1];
+              }
+            }
+            
+            // Extract title if not already set by oEmbed/JSON-LD
+            if (metadata.title === "Video") {
+              const ogTitleMatch = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) || 
+                                  html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i) ||
+                                  html.match(/<title>([^<]+)<\/title>/i);
+              if (ogTitleMatch) {
+                metadata.title = ogTitleMatch[1].replace(/&amp;/g, '&').trim();
+              }
             }
           }
         }
@@ -340,8 +428,15 @@ export async function registerRoutes(
         // Clean up title: remove notification counters and platform suffixes
         if (metadata.title) {
           metadata.title = metadata.title.replace(/^\(\d+\)\s*/, '');
-          metadata.title = metadata.title.replace(/\s*-\s*(YouTube|TikTok|Vimeo|Instagram|Facebook)\s*$/i, '');
+          metadata.title = metadata.title.replace(/\s*-\s*(YouTube|TikTok|Vimeo|Instagram|Facebook|Twitch)\s*$/i, '');
           metadata.title = metadata.title.trim();
+        }
+
+        // Fix Twitch thumbnail placeholders
+        if (platform === "twitch" && metadata.thumbnail) {
+          metadata.thumbnail = metadata.thumbnail
+            .replace('{width}', '640')
+            .replace('{height}', '360');
         }
       } catch (e) {
         console.error("Metadata extraction error:", e);
@@ -394,6 +489,95 @@ export async function registerRoutes(
     res.json({ code });
   });
 
+  // Playlist Routes
+  app.get("/api/playlists", isAuthenticated, async (req, res) => {
+    // @ts-ignore
+    const userId = req.user!.id;
+    const playlists = await storage.getPlaylists(userId);
+    res.json(playlists);
+  });
+
+  app.get("/api/playlists/:id", isAuthenticated, async (req, res) => {
+    // @ts-ignore
+    const userId = req.user!.id;
+    const id = parseInt(req.params.id);
+    const playlist = await storage.getPlaylist(id, userId);
+    if (!playlist) {
+      return res.status(404).json({ message: "Playlist not found" });
+    }
+    res.json(playlist);
+  });
+
+  app.post("/api/playlists", isAuthenticated, async (req, res) => {
+    // @ts-ignore
+    const userId = req.user!.id;
+    const playlist = await storage.createPlaylist(userId, req.body);
+    res.status(201).json(playlist);
+  });
+
+  app.patch("/api/playlists/:id", isAuthenticated, async (req, res) => {
+    // @ts-ignore
+    const userId = req.user!.id;
+    const id = parseInt(req.params.id);
+    const playlist = await storage.updatePlaylist(id, userId, req.body);
+    if (!playlist) {
+      return res.status(404).json({ message: "Playlist not found" });
+    }
+    res.json(playlist);
+  });
+
+  app.delete("/api/playlists/:id", isAuthenticated, async (req, res) => {
+    // @ts-ignore
+    const userId = req.user!.id;
+    const id = parseInt(req.params.id);
+    await storage.deletePlaylist(id, userId);
+    res.status(204).send();
+  });
+
+  // Playlist Tags
+  app.post("/api/playlists/:playlistId/tags/:tagId", isAuthenticated, async (req, res) => {
+    const playlistId = parseInt(req.params.playlistId);
+    const tagId = parseInt(req.params.tagId);
+    await storage.addTagToPlaylist(playlistId, tagId);
+    res.status(201).send();
+  });
+
+  app.delete("/api/playlists/:playlistId/tags/:tagId", isAuthenticated, async (req, res) => {
+    const playlistId = parseInt(req.params.playlistId);
+    const tagId = parseInt(req.params.tagId);
+    await storage.removeTagFromPlaylist(playlistId, tagId);
+    res.status(204).send();
+  });
+
+  // Playlist Videos
+  app.post("/api/playlists/:playlistId/videos/:videoId", isAuthenticated, async (req, res) => {
+    const playlistId = parseInt(req.params.playlistId);
+    const videoId = parseInt(req.params.videoId);
+    const { position } = req.body;
+    await storage.addVideoToPlaylist(playlistId, videoId, position || 0);
+    res.status(201).send();
+  });
+
+  app.delete("/api/playlists/:playlistId/videos/:videoId", isAuthenticated, async (req, res) => {
+    const playlistId = parseInt(req.params.playlistId);
+    const videoId = parseInt(req.params.videoId);
+    await storage.removeVideoFromPlaylist(playlistId, videoId);
+    res.status(204).send();
+  });
+
+  app.post("/api/playlists/:playlistId/reorder", isAuthenticated, async (req, res) => {
+    const playlistId = parseInt(req.params.playlistId);
+    const { videoIds } = req.body;
+    await storage.reorderPlaylistVideos(playlistId, videoIds);
+    res.status(200).send();
+  });
+
+  app.post("/api/playlists/:playlistId/sync", isAuthenticated, async (req, res) => {
+    const playlistId = parseInt(req.params.playlistId);
+    await storage.syncPlaylistVideos(playlistId);
+    res.status(200).send();
+  });
+
 
   return httpServer;
 }
@@ -402,7 +586,9 @@ export async function resolveUrlRedirects(url: string): Promise<string> {
       url.includes("vt.tiktok.com") || 
       url.includes("tiktok.com/t/") ||
       url.includes("facebook.com/share/") ||
-      url.includes("fb.watch/")) {
+      url.includes("fb.watch/") ||
+      url.includes("clips.twitch.tv") ||
+      url.includes("pin.it")) {
     try {
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), 8000);

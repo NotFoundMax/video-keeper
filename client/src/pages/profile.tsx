@@ -86,49 +86,49 @@ export default function Profile() {
     <LayoutShell>
       <div className="max-w-2xl mx-auto space-y-10 py-10 px-4">
         <div className="text-center space-y-2">
-          <h1 className="text-4xl font-bold text-slate-900 dark:text-white tracking-tight">Mi Perfil</h1>
-          <p className="text-slate-500 dark:text-slate-400 font-medium">Gestiona tu cuenta y preferencias</p>
+          <h1 className="text-4xl font-bold text-foreground tracking-tight">Mi Perfil</h1>
+          <p className="text-muted-foreground font-medium">Gestiona tu cuenta y preferencias</p>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col items-center">
-          <Avatar className="w-32 h-32 mb-6 ring-8 ring-slate-50 dark:ring-slate-800 shadow-inner">
+        <div className="bg-card rounded-[2.5rem] p-10 shadow-sm border border-border flex flex-col items-center">
+          <Avatar className="w-32 h-32 mb-6 ring-8 ring-muted shadow-inner">
             <AvatarImage src={user.profileImageUrl ?? undefined} />
-            <AvatarFallback className="text-3xl bg-primary text-white font-bold">
+            <AvatarFallback className="text-3xl bg-primary text-primary-foreground font-bold">
               {user.firstName?.[0]}{user.lastName?.[0]}
             </AvatarFallback>
           </Avatar>
 
-          <h2 className="text-3xl font-bold text-slate-900 dark:text-white">{user.firstName} {user.lastName}</h2>
-          <p className="text-slate-400 dark:text-slate-500 font-medium mt-1">Usuario desde 2024</p>
+          <h2 className="text-3xl font-bold text-foreground">{user.firstName} {user.lastName}</h2>
+          <p className="text-muted-foreground font-medium mt-1">Usuario desde 2024</p>
 
           <div className="w-full grid grid-cols-1 gap-4 mt-10">
-            <div className="flex items-center p-6 rounded-3xl bg-slate-50 dark:bg-slate-800 border-none group hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-              <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-900 flex items-center justify-center shadow-sm mr-4 group-hover:scale-110 transition-transform">
+            <div className="flex items-center p-6 rounded-3xl bg-muted border-none group hover:bg-muted/80 transition-colors">
+              <div className="w-12 h-12 rounded-2xl bg-card flex items-center justify-center shadow-sm mr-4 group-hover:scale-110 transition-transform">
                 <UserIcon className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-bold mb-0.5">Nombre Completo</p>
-                <p className="font-bold text-slate-700 dark:text-slate-300 text-lg">{user.firstName} {user.lastName}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-0.5">Nombre Completo</p>
+                <p className="font-bold text-foreground text-lg">{user.firstName} {user.lastName}</p>
               </div>
             </div>
 
-            <div className="flex items-center p-6 rounded-3xl bg-slate-50 dark:bg-slate-800 border-none group hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-              <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-sm mr-4 group-hover:scale-110 transition-transform">
+            <div className="flex items-center p-6 rounded-3xl bg-muted border-none group hover:bg-muted/80 transition-colors">
+              <div className="w-12 h-12 rounded-2xl bg-card flex items-center justify-center shadow-sm mr-4 group-hover:scale-110 transition-transform">
                 <Mail className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-0.5">Email</p>
-                <p className="font-bold text-slate-700 text-lg">{user.email}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-0.5">Email</p>
+                <p className="font-bold text-foreground text-lg">{user.email}</p>
               </div>
             </div>
 
-            <div className="flex items-center p-6 rounded-3xl bg-slate-50 border-none group hover:bg-slate-100 transition-colors">
-              <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-sm mr-4 group-hover:scale-110 transition-transform">
+            <div className="flex items-center p-6 rounded-3xl bg-muted border-none group hover:bg-muted/80 transition-colors">
+              <div className="w-12 h-12 rounded-2xl bg-card flex items-center justify-center shadow-sm mr-4 group-hover:scale-110 transition-transform">
                 <Shield className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-0.5">Tipo de Cuenta</p>
-                <p className="font-bold text-slate-700 text-lg">Plan Premium</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-0.5">Tipo de Cuenta</p>
+                <p className="font-bold text-foreground text-lg">Plan Premium</p>
               </div>
             </div>
           </div>
@@ -136,20 +136,20 @@ export default function Profile() {
           {/* Bookmarklet Section */}
           <div className="w-full mt-10 p-8 rounded-[2rem] bg-primary/5 border border-primary/10 space-y-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-primary text-white">
+              <div className="p-2 rounded-xl bg-primary text-primary-foreground">
                 <Zap className="w-5 h-5" />
               </div>
-              <h3 className="text-xl font-bold text-slate-900">Acceso Rápido</h3>
+              <h3 className="text-xl font-bold text-foreground">Acceso Rápido</h3>
             </div>
 
-            <p className="text-sm text-slate-500 leading-relaxed font-medium">
+            <p className="text-sm text-muted-foreground leading-relaxed font-medium">
               Guarda videos al instante. Arrastra el botón a tu barra de marcadores.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3">
               <a
                 href={bookmarkletCode}
-                className="flex-1 h-16 rounded-2xl bg-primary text-white font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform cursor-move"
+                className="flex-1 h-16 rounded-2xl bg-primary text-primary-foreground font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform cursor-move"
                 onClick={(e) => {
                   if (e.currentTarget.protocol === 'javascript:') {
                     e.preventDefault();
@@ -163,7 +163,7 @@ export default function Profile() {
 
               <Button
                 variant="outline"
-                className="h-16 px-6 rounded-2xl border-primary/20 bg-white text-primary font-bold gap-2"
+                className="h-16 px-6 rounded-2xl border-primary/20 bg-card text-primary font-bold gap-2"
                 onClick={() => {
                   navigator.clipboard.writeText(bookmarkletCode);
                   alert("¡Código copiado! Pégalo como la URL de un nuevo marcador.");
@@ -186,9 +186,9 @@ export default function Profile() {
           <div className="w-full mt-8 p-6 rounded-3xl bg-gradient-to-br from-primary/5 to-purple-500/5 dark:from-primary/10 dark:to-purple-500/10 border border-primary/20">
             <div className="flex items-center gap-3 mb-4">
               <Database className="w-6 h-6 text-primary" />
-              <h3 className="text-lg font-black text-slate-900 dark:text-white">Backup de Colección</h3>
+              <h3 className="text-lg font-black text-foreground">Backup de Colección</h3>
             </div>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+            <p className="text-sm text-muted-foreground mb-6">
               Exporta tu colección completa para hacer backup o importa una colección previamente guardada.
             </p>
 
@@ -236,7 +236,7 @@ export default function Profile() {
 
           <Button
             variant="ghost"
-            className="mt-10 w-full h-16 rounded-2xl font-bold text-red-500 border border-red-100"
+            className="mt-10 w-full h-16 rounded-2xl font-bold text-destructive border border-destructive/20 hover:bg-destructive/5"
             onClick={() => logout()}
           >
             <LogOut className="w-5 h-5 mr-3" />

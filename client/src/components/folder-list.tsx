@@ -62,24 +62,44 @@ export function FolderList({ selectedFolderId, onSelectFolder, layout = "vertica
           <button
             key={folder.id}
             onClick={() => onSelectFolder(folder.id)}
-            className={`flex-shrink-0 w-44 p-6 rounded-[2.5rem] border-none text-center flex flex-col items-center gap-4 transition-all duration-300 ${selectedFolderId === folder.id
-              ? "bg-primary text-white shadow-2xl shadow-primary/30 scale-[1.02]"
-              : "bg-white text-slate-900 shadow-[0_8px_30px_rgb(0,0,0,0.04)]"
+            className={`flex-shrink-0 w-48 p-5 rounded-[2.5rem] border-none text-left flex flex-col gap-4 transition-all duration-500 group relative overflow-hidden ${selectedFolderId === folder.id
+              ? "bg-primary text-primary-foreground shadow-2xl shadow-primary/30 scale-[1.02]"
+              : "bg-card text-foreground shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] hover:shadow-xl hover:translate-y-[-4px] border-none"
               }`}
           >
-            <div className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center overflow-hidden ${selectedFolderId === folder.id ? "bg-white/20" : "bg-indigo-50"}`}>
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center overflow-hidden transition-all duration-500 ${selectedFolderId === folder.id ? "bg-white/20 scale-110" : "bg-secondary group-hover:scale-110"}`}>
               {folder.coverUrl ? (
                 <img src={folder.coverUrl} alt={folder.name} className="w-full h-full object-cover" />
               ) : (
-                <FolderIcon className={`w-8 h-8 ${selectedFolderId === folder.id ? "text-white" : "text-indigo-500"}`} />
+                <FolderIcon className={`w-7 h-7 ${selectedFolderId === folder.id ? "text-white" : "text-indigo-500"}`} />
               )}
             </div>
-            <div>
-              <h3 className="font-black text-base leading-tight truncate w-32">{folder.name}</h3>
-              <p className={`text-[10px] mt-1 font-bold uppercase tracking-widest ${selectedFolderId === folder.id ? "text-white/70" : "text-slate-400"}`}>
+
+            <div className="space-y-1">
+              <h3 className="font-black text-base leading-tight truncate">{folder.name}</h3>
+              <p className={`text-[10px] font-black uppercase tracking-widest ${selectedFolderId === folder.id ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                 {(folder as any).videoCount || 0} videos
               </p>
             </div>
+
+            {/* Tag indicators at bottom */}
+            {folder.tags && folder.tags.length > 0 && (
+              <div className="flex gap-1.5 mt-auto pt-2">
+                {folder.tags.slice(0, 4).map(tag => (
+                  <div
+                    key={tag.id}
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ backgroundColor: tag.color || '#3b82f6' }}
+                    title={tag.name}
+                  />
+                ))}
+                {folder.tags.length > 4 && (
+                  <div className={`w-1.5 h-1.5 rounded-full flex items-center justify-center text-[5px] font-black ${selectedFolderId === folder.id ? 'bg-white/40' : 'bg-slate-200'}`}>
+                    +
+                  </div>
+                )}
+              </div>
+            )}
           </button>
         ))}
       </div>
@@ -122,7 +142,7 @@ export function FolderList({ selectedFolderId, onSelectFolder, layout = "vertica
                     value={newFolderCoverUrl}
                     onChange={(e) => setNewFolderCoverUrl(e.target.value)}
                     placeholder="https://..."
-                    className="h-14 rounded-2xl bg-slate-50 border-none focus-visible:ring-primary/20"
+                    className="h-14 rounded-2xl bg-muted border-none focus-visible:ring-primary/20 text-foreground"
                   />
                 </div>
               </div>
@@ -140,8 +160,8 @@ export function FolderList({ selectedFolderId, onSelectFolder, layout = "vertica
         <button
           onClick={() => onSelectFolder(undefined)}
           className={`w-full flex items-center gap-4 p-4 rounded-2xl text-left ${selectedFolderId === undefined
-            ? "bg-primary text-white shadow-lg shadow-primary/20"
-            : "bg-white border border-slate-100 text-slate-600"
+            ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+            : "bg-card border border-border text-foreground hover:bg-muted/50 transition-colors"
             }`}
         >
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${selectedFolderId === undefined ? "bg-white/20" : "bg-slate-50"}`}>
@@ -163,8 +183,8 @@ export function FolderList({ selectedFolderId, onSelectFolder, layout = "vertica
               <button
                 onClick={() => onSelectFolder(folder.id)}
                 className={`w-full flex items-center gap-4 p-4 rounded-2xl text-left ${selectedFolderId === folder.id
-                  ? "bg-primary text-white shadow-lg shadow-primary/20"
-                  : "bg-white border border-slate-100 text-slate-600"
+                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                  : "bg-card border border-border text-foreground hover:bg-muted/50 transition-colors"
                   }`}
               >
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden ${selectedFolderId === folder.id ? "bg-white/20" : "bg-slate-50"}`}>
@@ -176,7 +196,7 @@ export function FolderList({ selectedFolderId, onSelectFolder, layout = "vertica
                 </div>
                 <div className="flex-1 overflow-hidden">
                   <span className="font-bold truncate block">{folder.name}</span>
-                  <span className={`text-[10px] font-medium ${selectedFolderId === folder.id ? "text-white/70" : "text-slate-400"}`}>
+                  <span className={`text-[10px] font-medium ${selectedFolderId === folder.id ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                     {(folder as any).videoCount || 0} videos
                   </span>
                 </div>

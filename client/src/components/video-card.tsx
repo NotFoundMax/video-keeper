@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { type Video, type Tag } from "@shared/schema";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +14,9 @@ import {
   Plus,
   Tag as TagIcon,
   CheckCircle2,
-  StickyNote
+  StickyNote,
+  ListVideo,
+  PlusSquare
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
@@ -25,7 +28,10 @@ import { useFolders } from "@/hooks/use-folders";
 import { useVideoProgress } from "@/hooks/use-video-progress";
 import { useTags } from "@/hooks/use-tags";
 import { useVideoTags } from "@/hooks/use-video-tags";
+import { usePlaylists, usePlaylistVideos } from "@/hooks/use-playlists";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 const Player = ReactPlayer as any;
 
@@ -44,7 +50,12 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isTagDialogOpen, setIsTagDialogOpen] = useState(false);
   const [isNotesDialogOpen, setIsNotesDialogOpen] = useState(false);
+  const [isPlaylistDialogOpen, setIsPlaylistDialogOpen] = useState(false);
   const [localTimestamp, setLocalTimestamp] = useState(video.lastTimestamp || 0);
+
+  const queryClient = useQueryClient();
+  const { data: playlists } = usePlaylists();
+  const { toast } = useToast();
   const [localNotes, setLocalNotes] = useState(video.notes || "");
 
   useEffect(() => {
@@ -66,7 +77,7 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
   });
 
   // Helper to format URLs for best compatibility
-  const getEmbedUrl = (url: string): { type: 'youtube' | 'youtube-shorts' | 'tiktok' | 'vimeo' | 'facebook' | 'instagram' | 'other'; id?: string; url?: string } => {
+  const getEmbedUrl = (url: string): { type: 'youtube' | 'youtube-shorts' | 'tiktok' | 'vimeo' | 'facebook' | 'instagram' | 'pinterest' | 'twitch' | 'other'; id?: string; url?: string } => {
     try {
       let cleanUrl = (url || "").trim();
       if (!cleanUrl) return { type: 'other', url: '' };
@@ -84,6 +95,10 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
         } else if (urlObj.pathname.includes("/shorts/")) {
           videoId = urlObj.pathname.split("/shorts/")[1];
           isShort = true;
+        } else if (urlObj.pathname.includes("/v/")) {
+          videoId = urlObj.pathname.split("/v/")[1];
+        } else if (urlObj.pathname.includes("/embed/")) {
+          videoId = urlObj.pathname.split("/embed/")[1];
         } else {
           videoId = urlObj.searchParams.get("v") || "";
         }
@@ -121,6 +136,29 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
       // Instagram
       if (urlObj.hostname.includes("instagram.com")) {
         return { type: 'instagram', url: cleanUrl };
+      }
+
+      // Pinterest
+      if (urlObj.hostname.includes("pinterest.com") || urlObj.hostname.includes("pin.it")) {
+        // Pinterest IDs are at the end of the path /pin/123/ or just 123
+        const matches = urlObj.pathname.match(/\/pin\/(\d+)/) || urlObj.pathname.match(/\/(\d+)\/?$/);
+        const id = matches ? matches[1] : null;
+        if (id) return { type: 'pinterest', id, url: cleanUrl };
+      }
+
+      // Twitch
+      if (urlObj.hostname.includes("twitch.tv")) {
+        if (urlObj.pathname.includes("/videos/")) {
+          const id = urlObj.pathname.split("/videos/")[1]?.split("/")[0];
+          if (id) return { type: 'twitch', id, url: cleanUrl };
+        } else if (urlObj.pathname.includes("/clip/")) {
+          const id = urlObj.pathname.split("/clip/")[1]?.split("/")[0];
+          if (id) return { type: 'twitch', id, url: cleanUrl }; // Adjust if clips need different handling
+        } else {
+          // Channel
+          const id = urlObj.pathname.split("/")[1];
+          if (id) return { type: 'twitch', id, url: cleanUrl };
+        }
       }
 
       return { type: 'other', url: cleanUrl };
@@ -177,8 +215,8 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
     <>
       <div className="group flex flex-col gap-4">
         <Card
-          className={`relative overflow-hidden bg-slate-200 border-none rounded-[2.5rem] shadow-sm transition-all duration-500 hover:shadow-xl hover:shadow-primary/10 ${isVertical ? "aspect-[9/16] ring-4 ring-slate-900/5" :
-            isSquare ? "aspect-square ring-4 ring-slate-900/5" :
+          className={`relative overflow-hidden bg-muted border-none rounded-[2.5rem] shadow-sm transition-all duration-500 hover:shadow-xl hover:shadow-primary/10 ${isVertical ? "aspect-[9/16] ring-4 ring-primary/5" :
+            isSquare ? "aspect-square ring-4 ring-primary/5" :
               "aspect-video"
             }`}
         >
@@ -193,8 +231,8 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
                 className="w-full h-full object-cover transition-transform duration-700 group-hover/thumb:scale-110"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-slate-100">
-                <Play className="w-12 h-12 text-slate-300" />
+              <div className="w-full h-full flex items-center justify-center bg-muted">
+                <Play className="w-12 h-12 text-muted-foreground/30" />
               </div>
             )}
 
@@ -227,6 +265,18 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
               </div>
             </div>
 
+            {/* Playlist Button - Top Right (left of Heart) */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsPlaylistDialogOpen(true);
+              }}
+              className="absolute top-5 right-16 z-30 p-3 rounded-full backdrop-blur-md border border-white/10 bg-black/20 text-white hover:bg-black/40 transition-all opacity-0 group-hover:opacity-100"
+              title="Añadir a playlist"
+            >
+              <ListVideo className="w-5 h-5" />
+            </button>
+
             {/* Favorite Button - Top Right */}
             <button
               onClick={(e) => {
@@ -241,11 +291,22 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
               />
             </button>
 
-            {/* Tag Overlay - Bottom Left */}
-            <div className="absolute bottom-5 left-5 z-30">
-              <Badge className="bg-black/40 backdrop-blur-md text-white border-none px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest">
-                #{video.category || "GENERAL"}
-              </Badge>
+            {/* Tags Overlay - Bottom Left */}
+            <div className="absolute bottom-5 left-5 z-30 flex gap-1.5 flex-wrap max-w-[80%]">
+              {video.tags?.slice(0, 3).map(tag => (
+                <Badge
+                  key={tag.id}
+                  style={{ backgroundColor: `${tag.color}44` || '#3b82f644' }}
+                  className="backdrop-blur-md text-white border-none px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest"
+                >
+                  #{tag.name}
+                </Badge>
+              ))}
+              {video.tags && video.tags.length > 3 && (
+                <Badge className="bg-black/40 backdrop-blur-md text-white border-none px-3 py-1 rounded-lg text-[9px] font-black">
+                  +{video.tags.length - 3}
+                </Badge>
+              )}
             </div>
 
             {/* Inline Player Overlay */}
@@ -265,7 +326,7 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
                   ) : (videoInfo.type === 'youtube' || videoInfo.type === 'youtube-shorts') ? (
                     <div className="w-full h-full bg-black">
                       <iframe
-                        src={`https://www.youtube.com/embed/${videoInfo.id}?autoplay=1&modestbranding=1&rel=0&start=${video.lastTimestamp || 0}&origin=${window.location.origin}${isVertical ? '&controls=0' : ''}`}
+                        src={`https://www.youtube.com/embed/${videoInfo.id}?autoplay=1&modestbranding=1&rel=0&start=${video.lastTimestamp || 0}&enablejsapi=1${isVertical ? '&controls=0' : ''}`}
                         className={`w-full h-full border-0 ${isVertical ? 'scale-[1.01]' : ''}`}
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowFullScreen
@@ -280,13 +341,59 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
                         allowFullScreen
                       />
                     </div>
+                  ) : videoInfo.type === 'pinterest' ? (
+                    <div className="w-full h-full bg-black flex items-center justify-center">
+                      <iframe
+                        src={`https://assets.pinterest.com/ext/embed.html?id=${videoInfo.id}`}
+                        className="w-full h-full border-0"
+                        allow="autoplay"
+                      />
+                    </div>
                   ) : (
-                    <iframe
-                      src={`https://player.vimeo.com/video/${videoInfo.id}?autoplay=1&badge=0&autopause=0&player_id=0&app_id=58479#t=${video.lastTimestamp || 0}s`}
-                      className="w-full h-full border-0"
-                      allow="autoplay; fullscreen; picture-in-picture"
-                      allowFullScreen
-                    />
+                    <div className="w-full h-full bg-black">
+                      <Player
+                        url={video.url}
+                        width="100%"
+                        height="100%"
+                        playing={true}
+                        controls={true}
+                        muted={false}
+                        volume={1}
+                        ref={playerRef}
+                        onProgress={({ playedSeconds }: any) => {
+                          if (playedSeconds > 0) {
+                            updateProgress(playedSeconds);
+                          }
+                        }}
+                        onPause={() => {
+                          if (playerRef.current) {
+                            saveProgress(playerRef.current.getCurrentTime());
+                          }
+                        }}
+                        onEnded={() => {
+                          if (playerRef.current) {
+                            saveProgress(playerRef.current.getCurrentTime());
+                          }
+                        }}
+                        config={{
+                          youtube: {
+                            playerVars: { start: video.lastTimestamp || 0, autoplay: 1 }
+                          },
+                          twitch: {
+                            options: {
+                              parent: [window.location.hostname],
+                              autoplay: true,
+                              muted: false
+                            }
+                          },
+                          file: {
+                            attributes: {
+                              style: { width: '100%', height: '100%', objectFit: 'contain' }
+                            }
+                          }
+                        }}
+                      />
+                    </div>
                   )}
                   <button
                     onClick={handleCloseInline}
@@ -302,14 +409,14 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
 
         <div className="px-2 space-y-2">
           <div className="flex justify-between items-start gap-4">
-            <h3 className="font-black text-slate-900 text-lg leading-tight line-clamp-2 flex-1">
+            <h3 className="font-black text-foreground text-lg leading-tight line-clamp-2 flex-1">
               {video.title}
             </h3>
             <div className="flex gap-2 shrink-0 pt-1">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-full transition-colors"
+                className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full transition-colors"
                 onClick={() => setIsEditDialogOpen(true)}
               >
                 <Pencil className="w-4 h-4" />
@@ -319,7 +426,7 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
                 size="icon"
                 className={`h-8 w-8 rounded-full transition-colors relative ${video.notes
                   ? 'text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950'
-                  : 'text-slate-400 hover:text-primary hover:bg-primary/10'
+                  : 'text-muted-foreground hover:text-primary hover:bg-primary/10'
                   }`}
                 onClick={() => setIsNotesDialogOpen(true)}
                 title={video.notes ? "Ver/Editar notas" : "Añadir notas"}
@@ -332,7 +439,7 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-slate-400 hover:text-destructive hover:bg-destructive/10 rounded-full transition-colors"
+                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full transition-colors"
                 onClick={() => onDelete(video.id)}
               >
                 <Trash2 className="w-4 h-4" />
@@ -342,7 +449,7 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
 
           {/* Metadata: Author & Duration */}
           {(video.authorName || (video.duration && video.duration > 0)) && (
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-400 -mt-1">
+            <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground -mt-1">
               {video.authorName && (
                 <span className="truncate max-w-[150px]">{video.authorName}</span>
               )}
@@ -369,7 +476,7 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
                 ))}
                 <button
                   onClick={() => setIsTagDialogOpen(true)}
-                  className="h-5 px-2 rounded-md bg-slate-100 text-slate-400 flex items-center gap-1 text-[10px] font-bold hover:bg-primary/10 hover:text-primary transition-colors"
+                  className="h-5 px-2 rounded-md bg-secondary text-muted-foreground flex items-center gap-1 text-[10px] font-bold hover:bg-primary/10 hover:text-primary transition-colors"
                 >
                   <Plus className="w-3 h-3" />
                   TAGS
@@ -379,7 +486,7 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
             </ScrollArea>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
               {video.createdAt && formatDistanceToNow(new Date(video.createdAt), { addSuffix: true, locale: es })}
             </span>
           </div>
@@ -387,19 +494,19 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
       </div>
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-md bg-white border-none shadow-2xl rounded-[2.5rem] p-0 overflow-hidden">
+        <DialogContent className="sm:max-w-md bg-card border-none shadow-2xl rounded-[2.5rem] p-0 overflow-hidden">
           <div className="p-8 space-y-6">
             <div className="space-y-1">
-              <h4 className="text-2xl font-black tracking-tight text-slate-900">Editar Video</h4>
-              <p className="text-sm text-slate-400 font-bold">Actualiza los detalles de tu video guardado.</p>
+              <h4 className="text-2xl font-black tracking-tight text-foreground">Editar Video</h4>
+              <p className="text-sm text-muted-foreground font-bold">Actualiza los detalles de tu video guardado.</p>
             </div>
 
             <div className="space-y-5">
               <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Título</label>
+                <label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Título</label>
                 <input
                   type="text"
-                  className="w-full h-14 px-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-primary/20 outline-none transition-all text-base font-bold"
+                  className="w-full h-14 px-4 rounded-2xl bg-muted border-none focus:ring-2 focus:ring-primary/20 outline-none transition-all text-base font-bold text-foreground"
                   defaultValue={video.title}
                   autoFocus
                   id={`edit-title-${video.id}`}
@@ -407,30 +514,6 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Categoría</label>
-                  <Select
-                    defaultValue={video.category || "general"}
-                    onValueChange={(val) => {
-                      const input = document.getElementById(`edit-category-${video.id}`) as HTMLInputElement;
-                      if (input) input.value = val;
-                    }}
-                  >
-                    <SelectTrigger className="w-full h-14 bg-slate-50 border-none rounded-2xl px-4 font-bold">
-                      <SelectValue placeholder="Categoría" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-2xl border-none shadow-xl">
-                      <SelectItem value="general">General</SelectItem>
-                      <SelectItem value="music">Música</SelectItem>
-                      <SelectItem value="education">Educación</SelectItem>
-                      <SelectItem value="entertainment">Entretenimiento</SelectItem>
-                      <SelectItem value="tutorials">Tutoriales</SelectItem>
-                      <SelectItem value="fitness">Fitness</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <input type="hidden" id={`edit-category-${video.id}`} defaultValue={video.category || "general"} />
-                </div>
-
                 <div className="space-y-2">
                   <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Carpeta</label>
                   <Select
@@ -440,10 +523,10 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
                       if (input) input.value = val;
                     }}
                   >
-                    <SelectTrigger className="w-full h-14 bg-slate-50 border-none rounded-2xl px-4 font-bold">
+                    <SelectTrigger className="w-full h-14 bg-muted border-none rounded-2xl px-4 font-bold text-foreground">
                       <SelectValue placeholder="Carpeta" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-2xl border-none shadow-xl">
+                    <SelectContent className="rounded-2xl border border-border shadow-xl">
                       <SelectItem value="none">Sin carpeta</SelectItem>
                       {folders?.map((f: any) => (
                         <SelectItem key={f.id} value={f.id.toString()}>{f.name}</SelectItem>
@@ -455,12 +538,23 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
               </div>
 
               <div className="space-y-2">
+                <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Duración (segundos)</label>
+                <input
+                  type="number"
+                  min="0"
+                  className="w-full h-14 px-4 rounded-2xl bg-muted border-none focus:ring-2 focus:ring-primary/20 outline-none transition-all text-base font-mono font-bold text-foreground"
+                  defaultValue={video.duration || 0}
+                  id={`edit-duration-${video.id}`}
+                />
+              </div>
+
+              <div className="space-y-2">
                 <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Punto inicio (s)</label>
                 <div className="flex gap-2">
                   <input
                     type="number"
                     min="0"
-                    className="flex-1 h-14 px-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-primary/20 outline-none transition-all text-base font-mono font-bold"
+                    className="flex-1 h-14 px-4 rounded-2xl bg-muted border-none focus:ring-2 focus:ring-primary/20 outline-none transition-all text-base font-mono font-bold text-foreground"
                     value={localTimestamp}
                     onChange={(e) => setLocalTimestamp(parseInt(e.target.value) || 0)}
                     id={`edit-timestamp-${video.id}`}
@@ -483,10 +577,10 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
                   value={localAspectRatio}
                   onValueChange={setLocalAspectRatio}
                 >
-                  <SelectTrigger className="w-full h-14 bg-slate-50 border-none rounded-2xl px-4 font-black">
+                  <SelectTrigger className="w-full h-14 bg-muted border-none rounded-2xl px-4 font-black text-foreground">
                     <SelectValue placeholder="Automático" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-2xl border-none shadow-xl">
+                  <SelectContent className="rounded-2xl border border-border shadow-xl">
                     <SelectItem value="auto">Automático (Detección)</SelectItem>
                     <SelectItem value="horizontal">Horizontal (16:9)</SelectItem>
                     <SelectItem value="vertical">Vertical (9:16)</SelectItem>
@@ -494,6 +588,60 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            {/* Tags Section */}
+            <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">
+                  Etiquetas
+                </label>
+                <span className="text-xs text-muted-foreground">
+                  {video.tags?.length || 0} seleccionadas
+                </span>
+              </div>
+
+              {allTags && allTags.length > 0 ? (
+                <div className="flex flex-wrap gap-2 p-4 rounded-2xl bg-muted max-h-48 overflow-y-auto">
+                  {allTags.map((tag: any) => {
+                    const isSelected = video.tags?.some((t: any) => t.id === tag.id);
+                    return (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            removeTag.mutate(tag.id);
+                          } else {
+                            addTag.mutate(tag.id);
+                          }
+                        }}
+                        className={`px-4 py-2 rounded-full font-bold text-sm transition-all ${isSelected
+                          ? 'text-white shadow-md scale-105'
+                          : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:scale-105 border-2 border-slate-200 dark:border-slate-700'
+                          }`}
+                        style={
+                          isSelected
+                            ? {
+                              backgroundColor: tag.color || '#3b82f6',
+                              borderColor: tag.color || '#3b82f6',
+                            }
+                            : {}
+                        }
+                      >
+                        {isSelected && <CheckCircle2 className="w-3 h-3 inline mr-1" />}
+                        {tag.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 text-center">
+                  <p className="text-sm text-slate-400 dark:text-slate-500">
+                    No hay etiquetas disponibles. Crea una en la página de Carpetas.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-3 pt-2">
@@ -507,17 +655,17 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
               <Button
                 onClick={() => {
                   const titleInput = document.getElementById(`edit-title-${video.id}`) as HTMLInputElement;
-                  const categoryInput = document.getElementById(`edit-category-${video.id}`) as HTMLInputElement;
                   const folderInput = document.getElementById(`edit-folder-${video.id}`) as HTMLInputElement;
 
                   const title = titleInput.value;
-                  const category = categoryInput.value;
                   const folderId = folderInput.value === "none" ? null : parseInt(folderInput.value);
+                  const durationInput = document.getElementById(`edit-duration-${video.id}`) as HTMLInputElement;
+                  const duration = parseInt(durationInput.value) || 0;
                   const lastTimestamp = localTimestamp;
                   const aspectRatio = localAspectRatio;
 
                   if (title.trim()) {
-                    onUpdate(video.id, { title: title.trim(), category, folderId, lastTimestamp, aspectRatio });
+                    onUpdate(video.id, { title: title.trim(), folderId, duration, lastTimestamp, aspectRatio });
                     setIsEditDialogOpen(false);
                   }
                 }}
@@ -651,6 +799,73 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
             </Button>
           </div>
         </DialogContent>
+        {/* Add to Playlist Dialog */}
+        <Dialog open={isPlaylistDialogOpen} onOpenChange={setIsPlaylistDialogOpen}>
+          <DialogContent className="sm:max-w-md rounded-[2.5rem] p-8 bg-white dark:bg-slate-900 border-none shadow-2xl">
+            <DialogHeader className="mb-6">
+              <DialogTitle className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-3">
+                <ListVideo className="w-6 h-6 text-primary" />
+                Añadir a Playlist
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 scrollbar-thin">
+              {playlists && playlists.length > 0 ? (
+                playlists.map((playlist) => (
+                  <button
+                    key={playlist.id}
+                    onClick={async () => {
+                      try {
+                        await apiRequest("POST", `/api/playlists/${playlist.id}/videos/${video.id}`, { position: playlist.videoCount });
+
+                        // Invalidate queries to make it reactive
+                        queryClient.invalidateQueries({ queryKey: ["/api/playlists"] });
+                        queryClient.invalidateQueries({ queryKey: [`/api/playlists/${playlist.id}`] });
+
+                        toast({
+                          title: "✅ Añadido",
+                          description: `Video añadido a "${playlist.name}"`,
+                        });
+                        setIsPlaylistDialogOpen(false);
+                      } catch (err) {
+                        toast({
+                          title: "Error",
+                          description: "No se pudo añadir el video a la playlist o ya existe",
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                    className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 hover:bg-primary/10 hover:text-primary transition-all group border-2 border-transparent hover:border-primary/20"
+                  >
+                    <div className="flex flex-col items-start px-1">
+                      <span className="font-black text-sm tracking-tight">{playlist.name}</span>
+                      <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-0.5">
+                        {playlist.videoCount} videos
+                      </span>
+                    </div>
+                    <PlusSquare className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </button>
+                ))
+              ) : (
+                <div className="text-center py-10 bg-slate-50 dark:bg-slate-800/50 rounded-[2.5rem] border-2 border-dashed border-slate-200 dark:border-slate-700">
+                  <div className="w-16 h-16 bg-white dark:bg-slate-800 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+                    <ListVideo className="w-8 h-8 text-slate-200" />
+                  </div>
+                  <p className="text-slate-500 dark:text-slate-400 font-bold text-sm mb-6">No tienes playlists creadas</p>
+                  <Button
+                    className="rounded-xl font-bold h-10 px-6 shadow-lg shadow-primary/20"
+                    onClick={() => {
+                      setIsPlaylistDialogOpen(false);
+                      // En una implementación real, esto podría abrir el diálogo de crear playlist globalmente
+                    }}
+                  >
+                    Ir a Playlists
+                  </Button>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </Dialog>
     </>
   );

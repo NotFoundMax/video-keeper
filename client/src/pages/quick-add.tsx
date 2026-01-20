@@ -61,6 +61,9 @@ export default function QuickAdd() {
             videoData.title = metadataResponse.title || "Video sin título";
             videoData.thumbnailUrl = metadataResponse.thumbnail || null;
             videoData.platform = metadataResponse.platform || "other";
+            videoData.authorName = metadataResponse.authorName || "";
+            videoData.duration = metadataResponse.duration || 0;
+            videoData.aspectRatio = metadataResponse.aspectRatio || "auto";
           } else {
             videoData.title = "Video sin título";
           }

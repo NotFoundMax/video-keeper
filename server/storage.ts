@@ -5,19 +5,25 @@ import {
   tags,
   folderTags,
   videoTags,
+  playlists,
+  playlistTags,
+  playlistVideos,
   type CreateVideoRequest,
   type UpdateVideoRequest,
   type Video,
   type Folder,
   type InsertFolder,
   type Tag,
-  type InsertTag
+  type InsertTag,
+  type Playlist,
+  type CreatePlaylistRequest,
+  type UpdatePlaylistRequest
 } from "@shared/schema";
 import { eq, and, desc, ilike, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // Videos
-  getVideos(userId: number, filters?: { search?: string; platform?: string; isFavorite?: boolean; category?: string; folderId?: number; tagId?: number }): Promise<(Video & { tags: Tag[] })[]>;
+  getVideos(userId: number, filters?: { search?: string; isFavorite?: boolean; folderId?: number; tagIds?: number[] }): Promise<(Video & { tags: Tag[] })[]>;
   getVideo(id: number): Promise<Video | undefined>;
   findByUrl(userId: number, url: string): Promise<Video | undefined>;
   createVideo(userId: number, video: CreateVideoRequest): Promise<Video>;
@@ -44,19 +50,27 @@ export interface IStorage {
   // Video Tags
   addTagToVideo(videoId: number, tagId: number): Promise<void>;
   removeTagFromVideo(videoId: number, tagId: number): Promise<void>;
+
+  // Playlists
+  getPlaylists(userId: number): Promise<(Playlist & { tags: Tag[]; videoCount: number; totalDuration: number })[]>;
+  getPlaylist(id: number, userId: number): Promise<(Playlist & { tags: Tag[]; videos: (Video & { position: number })[] }) | undefined>;
+  createPlaylist(userId: number, playlist: CreatePlaylistRequest): Promise<Playlist>;
+  updatePlaylist(id: number, userId: number, updates: UpdatePlaylistRequest): Promise<Playlist | undefined>;
+  deletePlaylist(id: number, userId: number): Promise<void>;
+  
+  // Playlist Tags
+  addTagToPlaylist(playlistId: number, tagId: number): Promise<void>;
+  removeTagFromPlaylist(playlistId: number, tagId: number): Promise<void>;
+  
+  // Playlist Videos
+  addVideoToPlaylist(playlistId: number, videoId: number, position: number): Promise<void>;
+  removeVideoFromPlaylist(playlistId: number, videoId: number): Promise<void>;
+  reorderPlaylistVideos(playlistId: number, videoIds: number[]): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
-  async getVideos(userId: number, filters?: { search?: string; platform?: string; isFavorite?: boolean; category?: string; folderId?: number; tagId?: number }): Promise<(Video & { tags: Tag[] })[]> {
+  async getVideos(userId: number, filters?: { search?: string; isFavorite?: boolean; folderId?: number; tagIds?: number[] }): Promise<(Video & { tags: Tag[] })[]> {
     const clauses = [eq(videos.userId, userId)];
-    
-    if (filters?.platform && filters.platform !== "all") {
-      clauses.push(eq(videos.platform, filters.platform));
-    }
-
-    if (filters?.category && filters.category !== "all") {
-      clauses.push(eq(videos.category, filters.category));
-    }
     
     if (filters?.isFavorite !== undefined) {
       clauses.push(eq(videos.isFavorite, filters.isFavorite));
@@ -66,11 +80,16 @@ export class DatabaseStorage implements IStorage {
       clauses.push(eq(videos.folderId, filters.folderId));
     }
 
-    if (filters?.tagId !== undefined && !isNaN(filters.tagId)) {
-      const videosWithTag = db.select({ id: videoTags.videoId })
-                              .from(videoTags)
-                              .where(eq(videoTags.tagId, filters.tagId));
-      clauses.push(inArray(videos.id, videosWithTag));
+    if (filters?.tagIds && filters.tagIds.length > 0) {
+      // Intersection logic: Video must have ALL selected tags
+      for (const tagId of filters.tagIds) {
+        if (!isNaN(tagId)) {
+          const videosWithTag = db.select({ id: videoTags.videoId })
+                                  .from(videoTags)
+                                  .where(eq(videoTags.tagId, tagId));
+          clauses.push(inArray(videos.id, videosWithTag));
+        }
+      }
     }
 
     if (filters?.search) {
@@ -238,10 +257,213 @@ export class DatabaseStorage implements IStorage {
   // Video Tags
   async addTagToVideo(videoId: number, tagId: number): Promise<void> {
     await db.insert(videoTags).values({ videoId, tagId }).onConflictDoNothing();
+    
+    // Auto-Add Logic: Check playlists that have this tag and auto_add: true
+    const matchingPlaylists = await db
+      .select({ id: playlists.id })
+      .from(playlistTags)
+      .innerJoin(playlists, eq(playlistTags.playlistId, playlists.id))
+      .where(and(eq(playlistTags.tagId, tagId), eq(playlists.autoAdd, true)));
+
+    for (const p of matchingPlaylists) {
+      // Find current max position to append
+      const videosInP = await db
+        .select({ position: playlistVideos.position })
+        .from(playlistVideos)
+        .where(eq(playlistVideos.playlistId, p.id))
+        .orderBy(desc(playlistVideos.position))
+        .limit(1);
+      
+      const nextPos = (videosInP[0]?.position ?? -1) + 1;
+      await this.addVideoToPlaylist(p.id, videoId, nextPos);
+    }
   }
 
   async removeTagFromVideo(videoId: number, tagId: number): Promise<void> {
     await db.delete(videoTags).where(and(eq(videoTags.videoId, videoId), eq(videoTags.tagId, tagId)));
+  }
+
+  async syncPlaylistVideos(playlistId: number): Promise<void> {
+    const tagsForPlaylist = await db
+      .select({ tagId: playlistTags.tagId })
+      .from(playlistTags)
+      .where(eq(playlistTags.playlistId, playlistId));
+    
+    const tagIds = tagsForPlaylist.map(t => t.tagId);
+    if (tagIds.length === 0) return;
+
+    // Find all videos that have any of these tags and are NOT already in the playlist
+    const matchingVideos = await db
+      .select({ videoId: videoTags.videoId })
+      .from(videoTags)
+      .where(inArray(videoTags.tagId, tagIds));
+
+    const videoIds = Array.from(new Set(matchingVideos.map(v => v.videoId)));
+    
+    // Get existing videos in playlist
+    const existingInPlaylist = await db
+      .select({ videoId: playlistVideos.videoId })
+      .from(playlistVideos)
+      .where(eq(playlistVideos.playlistId, playlistId));
+    
+    const existingIds = new Set(existingInPlaylist.map(v => v.videoId));
+    const newVideoIds = videoIds.filter(id => !existingIds.has(id));
+
+    if (newVideoIds.length === 0) return;
+
+    // Find max position
+    const videosInP = await db
+        .select({ position: playlistVideos.position })
+        .from(playlistVideos)
+        .where(eq(playlistVideos.playlistId, playlistId))
+        .orderBy(desc(playlistVideos.position))
+        .limit(1);
+    
+    let currentPos = (videosInP[0]?.position ?? -1) + 1;
+
+    for (const vId of newVideoIds) {
+      await this.addVideoToPlaylist(playlistId, vId, currentPos++);
+    }
+  }
+
+  // Playlists
+  async getPlaylists(userId: number): Promise<(Playlist & { tags: Tag[]; videoCount: number; totalDuration: number })[]> {
+    const allPlaylists = await db
+      .select()
+      .from(playlists)
+      .where(eq(playlists.userId, userId))
+      .orderBy(desc(playlists.createdAt));
+
+    const playlistsWithData = await Promise.all(allPlaylists.map(async (playlist) => {
+      // Get tags for this playlist
+      const tagsForPlaylist = await db
+        .select({
+          id: tags.id,
+          userId: tags.userId,
+          name: tags.name,
+          color: tags.color
+        })
+        .from(playlistTags)
+        .innerJoin(tags, eq(playlistTags.tagId, tags.id))
+        .where(eq(playlistTags.playlistId, playlist.id));
+
+      // Get videos and calculate total duration
+      const videosInPlaylist = await db
+        .select({
+          duration: videos.duration
+        })
+        .from(playlistVideos)
+        .innerJoin(videos, eq(playlistVideos.videoId, videos.id))
+        .where(eq(playlistVideos.playlistId, playlist.id));
+
+      const totalDuration = videosInPlaylist.reduce((acc, v) => acc + (v.duration || 0), 0);
+
+      return {
+        ...playlist,
+        tags: tagsForPlaylist,
+        videoCount: videosInPlaylist.length,
+        totalDuration
+      };
+    }));
+
+    return playlistsWithData;
+  }
+
+  async getPlaylist(id: number, userId: number): Promise<(Playlist & { tags: Tag[]; videos: (Video & { position: number })[] }) | undefined> {
+    const [playlist] = await db
+      .select()
+      .from(playlists)
+      .where(and(eq(playlists.id, id), eq(playlists.userId, userId)));
+
+    if (!playlist) return undefined;
+
+    // Get tags
+    const tagsForPlaylist = await db
+      .select({
+        id: tags.id,
+        userId: tags.userId,
+        name: tags.name,
+        color: tags.color
+      })
+      .from(playlistTags)
+      .innerJoin(tags, eq(playlistTags.tagId, tags.id))
+      .where(eq(playlistTags.playlistId, id));
+
+    // Get videos with position
+    const videosInPlaylist = await db
+      .select({
+        video: videos,
+        position: playlistVideos.position
+      })
+      .from(playlistVideos)
+      .innerJoin(videos, eq(playlistVideos.videoId, videos.id))
+      .where(eq(playlistVideos.playlistId, id))
+      .orderBy(playlistVideos.position);
+
+    const videosWithPosition = videosInPlaylist.map(({ video, position }) => ({
+      ...video,
+      position
+    }));
+
+    return {
+      ...playlist,
+      tags: tagsForPlaylist,
+      videos: videosWithPosition
+    };
+  }
+
+  async createPlaylist(userId: number, playlist: CreatePlaylistRequest): Promise<Playlist> {
+    const [newPlaylist] = await db
+      .insert(playlists)
+      .values({ ...playlist, userId })
+      .returning();
+    return newPlaylist;
+  }
+
+  async updatePlaylist(id: number, userId: number, updates: UpdatePlaylistRequest): Promise<Playlist | undefined> {
+    const [updated] = await db
+      .update(playlists)
+      .set(updates)
+      .where(and(eq(playlists.id, id), eq(playlists.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async deletePlaylist(id: number, userId: number): Promise<void> {
+    await db.delete(playlists).where(and(eq(playlists.id, id), eq(playlists.userId, userId)));
+  }
+
+  // Playlist Tags
+  async addTagToPlaylist(playlistId: number, tagId: number): Promise<void> {
+    await db.insert(playlistTags).values({ playlistId, tagId }).onConflictDoNothing();
+  }
+
+  async removeTagFromPlaylist(playlistId: number, tagId: number): Promise<void> {
+    await db.delete(playlistTags).where(and(eq(playlistTags.playlistId, playlistId), eq(playlistTags.tagId, tagId)));
+  }
+
+  // Playlist Videos
+  async addVideoToPlaylist(playlistId: number, videoId: number, position: number): Promise<void> {
+    await db.insert(playlistVideos).values({ playlistId, videoId, position }).onConflictDoNothing();
+  }
+
+  async removeVideoFromPlaylist(playlistId: number, videoId: number): Promise<void> {
+    await db.delete(playlistVideos).where(and(eq(playlistVideos.playlistId, playlistId), eq(playlistVideos.videoId, videoId)));
+  }
+
+  async reorderPlaylistVideos(playlistId: number, videoIds: number[]): Promise<void> {
+    // Delete all existing videos in playlist
+    await db.delete(playlistVideos).where(eq(playlistVideos.playlistId, playlistId));
+    
+    // Re-insert with new positions
+    if (videoIds.length > 0) {
+      const values = videoIds.map((videoId, index) => ({
+        playlistId,
+        videoId,
+        position: index
+      }));
+      await db.insert(playlistVideos).values(values);
+    }
   }
 }
 

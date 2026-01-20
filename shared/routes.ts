@@ -25,7 +25,6 @@ export const api = {
       input: z.object({
         search: z.string().optional(),
         platform: z.string().optional(),
-        category: z.string().optional(),
       }).optional(),
       responses: {
         200: z.array(z.custom<typeof videos.$inferSelect>()),

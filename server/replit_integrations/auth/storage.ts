@@ -7,6 +7,7 @@ export interface IAuthStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: any): Promise<User>;
+  upsertUser(user: UpsertUser): Promise<User>;
 }
 
 class AuthStorage implements IAuthStorage {
@@ -24,6 +25,23 @@ class AuthStorage implements IAuthStorage {
     const [user] = await db
       .insert(users)
       .values(userData)
+      .returning();
+    return user;
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          email: userData.email,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          profileImageUrl: userData.profileImageUrl,
+        },
+      })
       .returning();
     return user;
   }

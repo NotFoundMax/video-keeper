@@ -38,9 +38,10 @@ export default function AddVideo() {
     title: "",
     platform: "other",
     thumbnailUrl: "" as string | undefined,
-    category: "general",
     folderId: undefined as number | undefined,
     aspectRatio: "auto",
+    authorName: "",
+    duration: 0,
   });
   const [previewError, setPreviewError] = useState(false);
   const [duplicateVideo, setDuplicateVideo] = useState<any>(null);
@@ -106,7 +107,9 @@ export default function AddVideo() {
             title: prev.title || data.title,
             platform: data.platform,
             thumbnailUrl: data.thumbnail,
-            aspectRatio: data.aspectRatio || "auto"
+            aspectRatio: data.aspectRatio || "auto",
+            authorName: data.authorName || "",
+            duration: data.duration || 0,
           }));
         }
       });
@@ -126,22 +129,22 @@ export default function AddVideo() {
     <LayoutShell>
       <div className="max-w-2xl mx-auto space-y-10 py-10 px-4">
         <div className="text-center space-y-2">
-          <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Añadir Video</h1>
-          <p className="text-slate-500 font-medium">Guarda tus videos favoritos de cualquier plataforma</p>
+          <h1 className="text-4xl font-bold text-foreground tracking-tight">Añadir Video</h1>
+          <p className="text-muted-foreground font-medium">Guarda tus videos favoritos de cualquier plataforma</p>
         </div>
 
-        <div className="bg-white rounded-[2.5rem] p-8 md:p-10 shadow-sm border border-slate-100">
+        <div className="bg-card rounded-[2.5rem] p-8 md:p-10 shadow-sm border border-border">
           <form onSubmit={handleSubmit} className="space-y-8">
             <div className="space-y-3">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">URL del Video</label>
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">URL del Video</label>
               <div className="relative group">
-                <div className="absolute left-5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center group-focus-within:bg-primary/10 transition-colors">
-                  <LinkIcon className="w-5 h-5 text-slate-400 group-focus-within:text-primary transition-colors" />
+                <div className="absolute left-5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl bg-muted flex items-center justify-center group-focus-within:bg-primary/10 transition-colors">
+                  <LinkIcon className="w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
                 </div>
                 <Input
                   id="url"
                   placeholder="https://youtube.com/watch?v=..."
-                  className="pl-16 h-16 rounded-2xl bg-slate-50 border-none focus-visible:ring-2 focus-visible:ring-primary/20 text-lg font-medium"
+                  className="pl-16 h-16 rounded-2xl bg-muted border-none focus-visible:ring-2 focus-visible:ring-primary/20 text-lg font-medium text-foreground"
                   value={formData.url}
                   onChange={(e) => setFormData({ ...formData, url: e.target.value })}
                   required
@@ -157,7 +160,7 @@ export default function AddVideo() {
                 {isFetchingMetadata ? (
                   <div className="flex flex-col items-center gap-3">
                     <div className="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
-                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Analizando...</p>
+                    <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Analizando...</p>
                   </div>
                 ) : (
                   <>
@@ -216,7 +219,7 @@ export default function AddVideo() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-3">
                 <div className="flex items-center justify-between ml-1">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Título</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Título</label>
                   {isFetchingMetadata && (
                     <div className="flex items-center text-[10px] text-primary font-bold uppercase tracking-widest animate-pulse">
                       Cargando...
@@ -226,7 +229,7 @@ export default function AddVideo() {
                 <Input
                   id="title"
                   placeholder="Mi video increíble"
-                  className="h-14 rounded-2xl bg-slate-50 border-none focus-visible:ring-2 focus-visible:ring-primary/20 font-bold"
+                  className="h-14 rounded-2xl bg-muted border-none focus-visible:ring-2 focus-visible:ring-primary/20 font-bold text-foreground"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   required
@@ -234,72 +237,56 @@ export default function AddVideo() {
               </div>
 
               <div className="space-y-3">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Plataforma</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Plataforma</label>
                 <Select
                   value={formData.platform}
                   onValueChange={(val) => setFormData({ ...formData, platform: val })}
                 >
-                  <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-primary/20 font-bold">
+                  <SelectTrigger className="h-14 rounded-2xl bg-muted border-none focus:ring-2 focus:ring-primary/20 font-bold text-foreground">
                     <SelectValue placeholder="Seleccionar plataforma" />
                   </SelectTrigger>
                   <SelectContent className="rounded-2xl border-none shadow-xl">
                     <SelectItem value="youtube">YouTube</SelectItem>
                     <SelectItem value="tiktok">TikTok</SelectItem>
                     <SelectItem value="instagram">Instagram</SelectItem>
+                    <SelectItem value="facebook">Facebook</SelectItem>
                     <SelectItem value="vimeo">Vimeo</SelectItem>
+                    <SelectItem value="pinterest">Pinterest</SelectItem>
+                    <SelectItem value="twitch">Twitch</SelectItem>
                     <SelectItem value="other">Otra</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Categoría</label>
-                <Select
-                  value={formData.category}
-                  onValueChange={(val) => setFormData({ ...formData, category: val })}
-                >
-                  <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-primary/20 font-bold">
-                    <SelectValue placeholder="Seleccionar categoría" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-2xl border-none shadow-xl">
-                    <SelectItem value="general">General</SelectItem>
-                    <SelectItem value="music">Música</SelectItem>
-                    <SelectItem value="education">Educación</SelectItem>
-                    <SelectItem value="entertainment">Entretenimiento</SelectItem>
-                    <SelectItem value="tutorials">Tutoriales</SelectItem>
-                    <SelectItem value="fitness">Fitness</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-3">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Carpeta</label>
-                <Select
-                  value={formData.folderId?.toString() || "none"}
-                  onValueChange={(val) => setFormData({ ...formData, folderId: val === "none" ? undefined : parseInt(val) })}
-                >
-                  <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-primary/20 font-bold">
-                    <SelectValue placeholder="Sin carpeta" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-2xl border-none shadow-xl">
-                    <SelectItem value="none">Sin carpeta</SelectItem>
-                    {folders?.map((f: any) => (
-                      <SelectItem key={f.id} value={f.id.toString()}>{f.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-3">
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Carpeta (Opcional)</label>
+              <Select
+                value={formData.folderId?.toString() || "none"}
+                onValueChange={(val) => setFormData({ ...formData, folderId: val === "none" ? undefined : parseInt(val) })}
+              >
+                <SelectTrigger className="h-14 rounded-2xl bg-muted border-none focus:ring-2 focus:ring-primary/20 font-bold text-foreground">
+                  <SelectValue placeholder="Sin carpeta" />
+                </SelectTrigger>
+                <SelectContent className="rounded-2xl border-none shadow-xl">
+                  <SelectItem value="none">Sin carpeta</SelectItem>
+                  {folders?.map((f: any) => (
+                    <SelectItem key={f.id} value={f.id.toString()}>{f.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground ml-1 font-medium italic">
+                * Organiza tus videos en carpetas. También puedes usar etiquetas después de guardar.
+              </p>
             </div>
 
             <div className="space-y-3">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Formato de Pantalla</label>
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Formato de Pantalla</label>
               <Select
                 value={formData.aspectRatio || "auto"}
                 onValueChange={(val) => setFormData({ ...formData, aspectRatio: val })}
               >
-                <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-primary/20 font-bold">
+                <SelectTrigger className="h-14 rounded-2xl bg-muted border-none focus:ring-2 focus:ring-primary/20 font-bold text-foreground">
                   <SelectValue placeholder="Automático" />
                 </SelectTrigger>
                 <SelectContent className="rounded-2xl border-none shadow-xl">
@@ -309,7 +296,7 @@ export default function AddVideo() {
                   <SelectItem value="square">Cuadrado (1:1)</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-[10px] text-slate-400 ml-1 font-medium italic">
+              <p className="text-[10px] text-muted-foreground ml-1 font-medium italic">
                 * El formato cuadrado (1:1) es común en posts de Instagram y Facebook.
               </p>
             </div>

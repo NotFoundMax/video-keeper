@@ -151,7 +151,6 @@ export async function importCollection(jsonString: string): Promise<{
           thumbnailUrl: video.thumbnailUrl,
           authorName: video.authorName,
           duration: video.duration,
-          category: video.category,
           folderId: newFolderId,
           aspectRatio: video.aspectRatio,
           notes: video.notes,

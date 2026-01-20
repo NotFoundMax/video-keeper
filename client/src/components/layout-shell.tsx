@@ -11,7 +11,8 @@ import {
   User as UserIcon,
   Video,
   Menu,
-  Folder
+  Folder,
+  ListVideo
 } from "lucide-react";
 import {
   Sheet,
@@ -32,19 +33,32 @@ export function LayoutShell({ children }: { children: ReactNode }) {
   const navItems = [
     { href: "/", label: "Inicio", icon: Home },
     { href: "/add", label: "Añadir", icon: PlusCircle },
+    { href: "/playlists", label: "Playlists", icon: ListVideo },
     { href: "/folders", label: "Carpetas", icon: Folder },
     { href: "/profile", label: "Perfil", icon: UserIcon },
   ];
-
   return (
     <div className="min-h-screen bg-[#F8F9FB] dark:bg-slate-950 flex flex-col md:flex-row transition-colors">
+      {/* Mobile Top Header - Only on subpages, replaced by SearchBar on home */}
+      {location !== "/" && (
+        <header className="md:hidden flex items-center justify-between px-6 py-4 bg-background border-b border-border sticky top-0 z-50 transition-colors">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-primary text-white shadow-lg shadow-primary/20">
+              <Video className="w-5 h-5" />
+            </div>
+            <h1 className="text-lg font-black font-display tracking-tighter text-foreground uppercase">Keeper</h1>
+          </div>
+          <ThemeToggle />
+        </header>
+      )}
+
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-64 flex-col border-r border-border bg-white dark:bg-slate-900 h-screen sticky top-0 p-6 z-20 shadow-sm">
-        <div className="flex items-center gap-3 mb-10 px-2">
-          <div className="p-2 rounded-xl bg-primary text-white shadow-lg shadow-primary/20">
+      <aside className="hidden md:flex w-64 flex-col border-r border-border bg-card h-screen sticky top-0 p-6 z-40 shadow-sm transition-colors">
+        <div className="flex items-center gap-3 mb-10 px-2 group cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+          <div className="p-2 rounded-xl bg-primary text-white shadow-lg shadow-primary/20 group-hover:rotate-12 transition-transform">
             <Video className="w-6 h-6" />
           </div>
-          <h1 className="text-xl font-bold font-display tracking-tight text-foreground">Videoteca</h1>
+          <h1 className="text-xl font-black font-display tracking-tighter text-foreground uppercase">Keeper</h1>
         </div>
 
         <nav className="flex-1 space-y-2">
@@ -55,8 +69,8 @@ export function LayoutShell({ children }: { children: ReactNode }) {
                 key={item.href}
                 href={item.href}
                 className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group ${isActive
-                  ? "bg-primary/10 text-primary font-semibold"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  ? "bg-primary/10 text-primary font-black"
+                  : "text-muted-foreground hover:bg-secondary hover:text-foreground font-bold"
                   }`}
               >
                 <item.icon className={`w-5 h-5 ${isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"}`} />
@@ -70,19 +84,19 @@ export function LayoutShell({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-3 px-2">
             <Avatar className="h-10 w-10 border-2 border-primary/10">
               <AvatarImage src={user?.profileImageUrl ?? undefined} />
-              <AvatarFallback className="bg-primary/10 text-primary">
+              <AvatarFallback className="bg-primary/10 text-primary font-black">
                 {user?.firstName?.[0]}{user?.lastName?.[0]}
               </AvatarFallback>
             </Avatar>
             <div className="overflow-hidden flex-1">
-              <p className="text-sm font-bold truncate">{user?.firstName}</p>
-              <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+              <p className="text-sm font-black truncate">{user?.firstName}</p>
+              <p className="text-[10px] font-bold text-muted-foreground truncate uppercase">{user?.email}</p>
             </div>
             <ThemeToggle />
           </div>
           <Button
             variant="ghost"
-            className="w-full justify-start text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl"
+            className="w-full justify-start text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl font-bold"
             onClick={() => logout()}
           >
             <LogOut className="w-4 h-4 mr-2" />
@@ -92,33 +106,43 @@ export function LayoutShell({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 pb-24 md:pb-8 overflow-y-auto">
-        <div className="max-w-7xl mx-auto animate-in fade-in duration-500">
+      <main className="flex-1 pb-32 md:pb-8">
+        <div className={`${location === "/" ? "p-0" : "p-4 md:p-8"} max-w-7xl mx-auto animate-in fade-in duration-500`}>
           {children}
         </div>
       </main>
 
-      {/* Mobile Bottom Navigation - Dark Theme like the image */}
-      <nav className="md:hidden fixed bottom-6 left-6 right-6 bg-[#0F172A] rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] z-50 px-8 py-4">
-        <div className="flex justify-between items-center">
-          {navItems.map((item) => {
+      {/* Mobile Bottom Navigation - More compact */}
+      <nav className="md:hidden fixed bottom-4 left-4 right-4 bg-[#0F172A] rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.4)] z-50 px-4 py-3 border border-white/5 backdrop-blur-lg">
+        <div className="flex justify-around items-center">
+          {navItems.filter(item => item.href !== "/add").map((item) => {
             const isActive = location === item.href;
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${isActive ? 'text-white scale-110' : 'text-slate-500 hover:text-slate-300'}`}
+                className={`flex flex-col items-center gap-1 transition-all duration-300 ${isActive ? 'text-white scale-105' : 'text-slate-400 hover:text-slate-200'}`}
               >
-                <item.icon className={`w-6 h-6 ${isActive ? 'fill-white/10' : ''}`} strokeWidth={isActive ? 2.5 : 2} />
-                <span className="text-[9px] font-black uppercase tracking-[0.15em]">{item.label}</span>
+                <item.icon className={`w-5 h-5 ${isActive ? 'fill-white/10' : ''}`} strokeWidth={isActive ? 2.5 : 2} />
+                <span className="text-[8px] font-bold uppercase tracking-wider">{item.label}</span>
               </Link>
             );
           })}
         </div>
       </nav>
 
+      {/* Global Floating Add Button for Mobile - Replaces Keyboard Shortcuts on mobile */}
+      <Link href="/add">
+        <Button
+          size="icon"
+          className="md:hidden fixed bottom-24 right-6 h-14 w-14 rounded-full bg-primary shadow-2xl shadow-primary/40 active:scale-95 z-40 transition-transform"
+        >
+          <PlusCircle className="h-8 w-8 text-white" />
+        </Button>
+      </Link>
+
       {/* Keyboard Shortcuts Help */}
       <KeyboardShortcutsHelp />
-    </div>
+    </div >
   );
 }

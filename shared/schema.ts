@@ -40,7 +40,6 @@ export const videos = pgTable("videos", {
   thumbnailUrl: text("thumbnail_url"),
   authorName: text("author_name"), // Channel or author name
   duration: integer("duration"), // Video duration in seconds
-  category: text("category").default("general"),
   isFavorite: boolean("is_favorite").default(false),
   aspectRatio: text("aspect_ratio").default("auto"), // 'auto', 'horizontal', 'vertical', 'square'
   lastTimestamp: integer("last_timestamp").default(0), // Saved progress in seconds
@@ -48,12 +47,43 @@ export const videos = pgTable("videos", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+
 export const videoTags = pgTable("video_tags", {
   videoId: integer("video_id").notNull().references(() => videos.id, { onDelete: 'cascade' }),
   tagId: integer("tag_id").notNull().references(() => tags.id, { onDelete: 'cascade' }),
 }, (table) => [
   {
     pk: [table.videoId, table.tagId],
+  }
+]);
+
+export const playlists = pgTable("playlists", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  autoAdd: boolean("auto_add").default(false), // Auto-add videos with matching tags
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const playlistTags = pgTable("playlist_tags", {
+  playlistId: integer("playlist_id").notNull().references(() => playlists.id, { onDelete: 'cascade' }),
+  tagId: integer("tag_id").notNull().references(() => tags.id, { onDelete: 'cascade' }),
+}, (table) => [
+  {
+    pk: [table.playlistId, table.tagId],
+  }
+]);
+
+export const playlistVideos = pgTable("playlist_videos", {
+  playlistId: integer("playlist_id").notNull().references(() => playlists.id, { onDelete: 'cascade' }),
+  videoId: integer("video_id").notNull().references(() => videos.id, { onDelete: 'cascade' }),
+  position: integer("position").notNull(), // Order in playlist
+  addedAt: timestamp("added_at").defaultNow(),
+}, (table) => [
+  {
+    pk: [table.playlistId, table.videoId],
   }
 ]);
 
@@ -85,3 +115,15 @@ export type InsertVideo = z.infer<typeof insertVideoSchema>;
 
 export type CreateVideoRequest = InsertVideo;
 export type UpdateVideoRequest = Partial<InsertVideo>;
+
+export const insertPlaylistSchema = createInsertSchema(playlists).omit({ 
+  id: true, 
+  userId: true, 
+  createdAt: true,
+  updatedAt: true
+});
+
+export type Playlist = typeof playlists.$inferSelect;
+export type InsertPlaylist = z.infer<typeof insertPlaylistSchema>;
+export type CreatePlaylistRequest = InsertPlaylist;
+export type UpdatePlaylistRequest = Partial<InsertPlaylist>;

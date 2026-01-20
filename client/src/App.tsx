@@ -17,6 +17,7 @@ import AuthPage from "@/pages/auth-page";
 import FoldersPage from "@/pages/folders";
 import QuickAdd from "@/pages/quick-add";
 import PlaylistPage from "@/pages/playlist";
+import PlaylistsPage from "@/pages/playlists";
 
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -40,11 +41,24 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
-      <Route path="/add" component={() => <ProtectedRoute component={AddVideo} />} />
-      <Route path="/profile" component={() => <ProtectedRoute component={Profile} />} />
-      <Route path="/folders" component={() => <ProtectedRoute component={FoldersPage} />} />
-      <Route path="/playlist/:tagId" component={() => <ProtectedRoute component={PlaylistPage} />} />
+      <Route path="/">
+        <ProtectedRoute component={Dashboard} />
+      </Route>
+      <Route path="/add">
+        <ProtectedRoute component={AddVideo} />
+      </Route>
+      <Route path="/profile">
+        <ProtectedRoute component={Profile} />
+      </Route>
+      <Route path="/folders">
+        <ProtectedRoute component={FoldersPage} />
+      </Route>
+      <Route path="/playlists">
+        <ProtectedRoute component={PlaylistsPage} />
+      </Route>
+      <Route path="/playlists/:id">
+        <ProtectedRoute component={PlaylistPage} />
+      </Route>
       <Route path="/auth" component={AuthPage} />
       <Route path="/landing" component={Landing} />
       <Route path="/quick-add" component={QuickAdd} />

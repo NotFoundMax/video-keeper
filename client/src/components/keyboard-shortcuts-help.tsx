@@ -29,11 +29,11 @@ export function KeyboardShortcutsHelp() {
 
   return (
     <>
-      {/* Floating help button */}
+      {/* Floating help button - Hidden on mobile, as requested */}
       <Button
         variant="outline"
         size="icon"
-        className="fixed bottom-24 right-6 md:bottom-6 h-12 w-12 rounded-full shadow-lg bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:scale-110 transition-transform z-40"
+        className="hidden md:flex fixed bottom-6 right-6 h-12 w-12 rounded-full shadow-lg bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:scale-110 transition-transform z-40"
         onClick={() => setIsOpen(true)}
         title="Atajos de teclado (Shift + ?)"
       >

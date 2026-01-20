@@ -103,12 +103,12 @@ export default function FoldersPage() {
         {/* Header */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-black tracking-tight text-slate-900">Mis Carpetas</h1>
+            <h1 className="text-3xl font-black tracking-tight text-foreground">Mis Carpetas</h1>
             <div className="flex gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                className="rounded-2xl border-slate-200 text-slate-600 font-bold gap-2"
+                className="rounded-2xl border-border text-muted-foreground font-bold gap-2"
                 onClick={() => setIsTagManagerOpen(true)}
               >
                 <TagIcon className="w-4 h-4" />
@@ -124,7 +124,7 @@ export default function FoldersPage() {
               </Button>
             </div>
           </div>
-          <p className="text-slate-500 font-medium">Organiza tus videos por temas y etiquetas.</p>
+          <p className="text-muted-foreground font-medium">Organiza tus videos por temas y etiquetas.</p>
         </div>
 
         {/* Folders Grid - Photo Panel Style */}
@@ -132,7 +132,7 @@ export default function FoldersPage() {
           {folders?.map((folder: any) => (
             <Card
               key={folder.id}
-              className="group relative overflow-hidden rounded-[2.5rem] border-none shadow-sm bg-white aspect-[4/3]"
+              className="group relative overflow-hidden rounded-[2.5rem] border-none shadow-sm bg-card aspect-[4/3]"
             >
               {/* Background Image (Cover) */}
               <div className="absolute inset-0 z-0">
@@ -143,8 +143,8 @@ export default function FoldersPage() {
                     className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity duration-500"
                   />
                 ) : (
-                  <div className="w-full h-full bg-slate-50 flex items-center justify-center">
-                    <FolderIcon className="w-16 h-16 text-slate-200" />
+                  <div className="w-full h-full bg-muted flex items-center justify-center">
+                    <FolderIcon className="w-16 h-16 text-muted-foreground/20" />
                   </div>
                 )}
                 {/* Gradient Overlay */}
@@ -177,9 +177,9 @@ export default function FoldersPage() {
                         <MoreVertical className="w-5 h-5" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="rounded-2xl border-none shadow-2xl p-2">
+                    <DropdownMenuContent align="end" className="rounded-2xl border-border bg-card shadow-2xl p-2">
                       <DropdownMenuItem
-                        className="rounded-xl font-bold text-slate-600 gap-2 cursor-pointer"
+                        className="rounded-xl font-bold text-muted-foreground gap-2 cursor-pointer"
                         onClick={() => {
                           const name = prompt("Nuevo nombre:", folder.name);
                           if (name) updateFolder.mutate({ id: folder.id, name });
@@ -214,9 +214,9 @@ export default function FoldersPage() {
           {/* Add Folder Card */}
           <button
             onClick={() => setIsCreateFolderOpen(true)}
-            className="flex flex-col items-center justify-center gap-4 rounded-[2.5rem] border-2 border-dashed border-slate-200 bg-slate-50/50 aspect-[4/3] text-slate-400 hover:border-primary/30 hover:bg-primary/5 hover:text-primary transition-all group"
+            className="flex flex-col items-center justify-center gap-4 rounded-[2.5rem] border-2 border-dashed border-border bg-muted/50 aspect-[4/3] text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-primary transition-all group"
           >
-            <div className="w-16 h-16 rounded-full bg-white shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform">
+            <div className="w-16 h-16 rounded-full bg-card shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform">
               <FolderPlus className="w-8 h-8" />
             </div>
             <span className="font-bold text-lg">Nueva Carpeta</span>
@@ -228,8 +228,8 @@ export default function FoldersPage() {
           <DialogContent className="bg-white border-none shadow-2xl rounded-[2.5rem] sm:max-w-md p-0 overflow-hidden">
             <div className="p-8 space-y-6">
               <div className="space-y-1">
-                <DialogTitle className="text-2xl font-bold text-slate-900">Gestionar Etiquetas</DialogTitle>
-                <p className="text-sm text-slate-500 font-medium">Crea y organiza etiquetas para tus carpetas.</p>
+                <DialogTitle className="text-2xl font-bold text-foreground">Gestionar Etiquetas</DialogTitle>
+                <p className="text-sm text-muted-foreground font-medium">Crea y organiza etiquetas para tus carpetas.</p>
               </div>
 
               <form onSubmit={handleCreateTag} className="flex gap-2">
@@ -237,7 +237,7 @@ export default function FoldersPage() {
                   placeholder="Nueva etiqueta..."
                   value={newTagName}
                   onChange={(e) => setNewTagName(e.target.value)}
-                  className="h-12 rounded-xl bg-slate-50 border-none focus-visible:ring-primary/20"
+                  className="h-12 rounded-xl bg-muted border-none focus-visible:ring-primary/20 text-foreground"
                 />
                 <Button type="submit" className="h-12 rounded-xl px-6 font-bold" disabled={createTag.isPending}>
                   Añadir
@@ -247,7 +247,7 @@ export default function FoldersPage() {
               <ScrollArea className="h-[300px] pr-4">
                 <div className="space-y-2">
                   {tags?.map((tag: any) => (
-                    <div key={tag.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 group">
+                    <div key={tag.id} className="flex items-center justify-between p-3 rounded-xl bg-muted group">
                       {editingTagId === tag.id ? (
                         <div className="flex items-center gap-2 flex-1">
                           <Input
@@ -259,7 +259,7 @@ export default function FoldersPage() {
                           <Button size="icon" variant="ghost" className="h-9 w-9 text-green-600" onClick={() => handleUpdateTag(tag.id)}>
                             <Check className="w-4 h-4" />
                           </Button>
-                          <Button size="icon" variant="ghost" className="h-9 w-9 text-slate-400" onClick={() => setEditingTagId(null)}>
+                          <Button size="icon" variant="ghost" className="h-9 w-9 text-muted-foreground" onClick={() => setEditingTagId(null)}>
                             <X className="w-4 h-4" />
                           </Button>
                         </div>
@@ -267,13 +267,13 @@ export default function FoldersPage() {
                         <>
                           <div className="flex items-center gap-3">
                             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: tag.color || "#3b82f6" }} />
-                            <span className="font-bold text-slate-700">{tag.name}</span>
+                            <span className="font-bold text-foreground">{tag.name}</span>
                           </div>
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-8 w-8 text-slate-400 hover:text-primary"
+                              className="h-8 w-8 text-muted-foreground hover:text-primary"
                               onClick={() => {
                                 setEditingTagId(tag.id);
                                 setEditingTagName(tag.name);
@@ -284,7 +284,7 @@ export default function FoldersPage() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-8 w-8 text-slate-400 hover:text-destructive"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
                               onClick={() => {
                                 if (confirm("¿Eliminar etiqueta?")) deleteTag.mutate(tag.id);
                               }}
@@ -316,8 +316,8 @@ export default function FoldersPage() {
           <DialogContent className="bg-white border-none shadow-2xl rounded-[2.5rem] sm:max-w-md p-0 overflow-hidden">
             <div className="p-8 space-y-6">
               <div className="space-y-1">
-                <DialogTitle className="text-2xl font-bold text-slate-900">Etiquetas de {selectedFolderForTags?.name}</DialogTitle>
-                <p className="text-sm text-slate-500 font-medium">Selecciona las etiquetas para esta carpeta.</p>
+                <DialogTitle className="text-2xl font-bold text-foreground">Etiquetas de {selectedFolderForTags?.name}</DialogTitle>
+                <p className="text-sm text-muted-foreground font-medium">Selecciona las etiquetas para esta carpeta.</p>
               </div>
 
               <div className="flex flex-wrap gap-2 max-h-[300px] overflow-y-auto pr-2">
@@ -328,8 +328,8 @@ export default function FoldersPage() {
                       key={tag.id}
                       onClick={() => toggleTagForFolder(selectedFolderForTags.id, tag.id, isAssigned)}
                       className={`px-4 py-2 rounded-xl font-bold text-sm transition-all border-2 ${isAssigned
-                          ? "bg-primary border-primary text-white shadow-md shadow-primary/20"
-                          : "bg-slate-50 border-transparent text-slate-600 hover:bg-slate-100"
+                        ? "bg-primary border-primary text-primary-foreground shadow-md shadow-primary/20"
+                        : "bg-muted border-transparent text-muted-foreground hover:bg-muted/80"
                         }`}
                     >
                       {tag.name}
@@ -355,17 +355,17 @@ export default function FoldersPage() {
           <DialogContent className="bg-white border-none shadow-2xl rounded-[2.5rem] p-0 overflow-hidden">
             <div className="p-8 space-y-6">
               <div className="space-y-1">
-                <DialogTitle className="text-2xl font-bold text-slate-900">Crear Nueva Carpeta</DialogTitle>
-                <p className="text-sm text-slate-500 font-medium">Dale un nombre a tu nueva colección.</p>
+                <DialogTitle className="text-2xl font-bold text-foreground">Crear Nueva Carpeta</DialogTitle>
+                <p className="text-sm text-muted-foreground font-medium">Dale un nombre a tu nueva colección.</p>
               </div>
               <form onSubmit={handleCreateFolder} className="space-y-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Nombre</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Nombre</label>
                   <Input
                     value={newFolderName}
                     onChange={(e) => setNewFolderName(e.target.value)}
                     placeholder="Ej: Inspiración, Recetas..."
-                    className="h-14 rounded-2xl bg-slate-50 border-none focus-visible:ring-primary/20 text-lg font-medium"
+                    className="h-14 rounded-2xl bg-muted border-none focus-visible:ring-primary/20 text-lg font-medium text-foreground"
                     autoFocus
                   />
                 </div>
