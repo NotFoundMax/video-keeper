@@ -43,8 +43,8 @@ export function LayoutShell({ children }: { children: ReactNode }) {
       {location !== "/" && (
         <header className="md:hidden flex items-center justify-between px-6 py-4 bg-background border-b border-border sticky top-0 z-50 transition-colors">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-primary text-white shadow-lg shadow-primary/20">
-              <Video className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-primary/20 bg-background">
+              <img src="/logo.png" alt="Keeper Logo" className="w-full h-full object-cover" />
             </div>
             <h1 className="text-lg font-black font-display tracking-tighter text-foreground uppercase">Keeper</h1>
           </div>
@@ -55,10 +55,10 @@ export function LayoutShell({ children }: { children: ReactNode }) {
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 flex-col border-r border-border bg-card h-screen sticky top-0 p-6 z-40 shadow-sm transition-colors">
         <div className="flex items-center gap-3 mb-10 px-2 group cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-          <div className="p-2 rounded-xl bg-primary text-white shadow-lg shadow-primary/20 group-hover:rotate-12 transition-transform">
-            <Video className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-2xl overflow-hidden shadow-xl shadow-primary/20 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 bg-background">
+            <img src="/logo.png" alt="Keeper Logo" className="w-full h-full object-cover" />
           </div>
-          <h1 className="text-xl font-black font-display tracking-tighter text-foreground uppercase">Keeper</h1>
+          <h1 className="text-2xl font-black font-display tracking-tighter text-foreground uppercase tracking-[-0.05em]">Keeper</h1>
         </div>
 
         <nav className="flex-1 space-y-2">

@@ -11,6 +11,7 @@ import {
   Pencil,
   XCircle,
   Youtube,
+  Instagram,
   Plus,
   Tag as TagIcon,
   CheckCircle2,
@@ -32,6 +33,7 @@ import { usePlaylists, usePlaylistVideos } from "@/hooks/use-playlists";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { VideoPlayerNative, getEmbedUrl } from "@/components/video-player-native";
 
 const Player = ReactPlayer as any;
 
@@ -77,95 +79,6 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
   });
 
   // Helper to format URLs for best compatibility
-  const getEmbedUrl = (url: string): { type: 'youtube' | 'youtube-shorts' | 'tiktok' | 'vimeo' | 'facebook' | 'instagram' | 'pinterest' | 'twitch' | 'other'; id?: string; url?: string } => {
-    try {
-      let cleanUrl = (url || "").trim();
-      if (!cleanUrl) return { type: 'other', url: '' };
-
-      if (!cleanUrl.startsWith("http")) cleanUrl = "https://" + cleanUrl;
-      const urlObj = new URL(cleanUrl);
-
-      // YouTube
-      if (urlObj.hostname.includes("youtube.com") || urlObj.hostname.includes("youtu.be")) {
-        let videoId = "";
-        let isShort = false;
-
-        if (urlObj.hostname.includes("youtu.be")) {
-          videoId = urlObj.pathname.slice(1);
-        } else if (urlObj.pathname.includes("/shorts/")) {
-          videoId = urlObj.pathname.split("/shorts/")[1];
-          isShort = true;
-        } else if (urlObj.pathname.includes("/v/")) {
-          videoId = urlObj.pathname.split("/v/")[1];
-        } else if (urlObj.pathname.includes("/embed/")) {
-          videoId = urlObj.pathname.split("/embed/")[1];
-        } else {
-          videoId = urlObj.searchParams.get("v") || "";
-        }
-
-        if (videoId) {
-          return {
-            type: isShort ? 'youtube-shorts' : 'youtube',
-            id: videoId.split('&')[0],
-            url: cleanUrl
-          };
-        }
-      }
-
-      // TikTok
-      if (urlObj.hostname.includes("tiktok.com")) {
-        const matches = urlObj.pathname.match(/\/video\/(\d+)/) || urlObj.pathname.match(/\/(\d+)$/);
-        const id = matches ? matches[1] : null;
-
-        if (id) return { type: 'tiktok', id, url: cleanUrl };
-        return { type: 'other', url: cleanUrl };
-      }
-
-      // Vimeo
-      if (urlObj.hostname.includes("vimeo.com")) {
-        const parts = urlObj.pathname.split('/');
-        const id = parts.find(p => /^\d+$/.test(p));
-        if (id) return { type: 'vimeo', id, url: cleanUrl };
-      }
-
-      // Facebook
-      if (urlObj.hostname.includes("facebook.com") || urlObj.hostname.includes("fb.watch")) {
-        return { type: 'facebook', url: cleanUrl };
-      }
-
-      // Instagram
-      if (urlObj.hostname.includes("instagram.com")) {
-        return { type: 'instagram', url: cleanUrl };
-      }
-
-      // Pinterest
-      if (urlObj.hostname.includes("pinterest.com") || urlObj.hostname.includes("pin.it")) {
-        // Pinterest IDs are at the end of the path /pin/123/ or just 123
-        const matches = urlObj.pathname.match(/\/pin\/(\d+)/) || urlObj.pathname.match(/\/(\d+)\/?$/);
-        const id = matches ? matches[1] : null;
-        if (id) return { type: 'pinterest', id, url: cleanUrl };
-      }
-
-      // Twitch
-      if (urlObj.hostname.includes("twitch.tv")) {
-        if (urlObj.pathname.includes("/videos/")) {
-          const id = urlObj.pathname.split("/videos/")[1]?.split("/")[0];
-          if (id) return { type: 'twitch', id, url: cleanUrl };
-        } else if (urlObj.pathname.includes("/clip/")) {
-          const id = urlObj.pathname.split("/clip/")[1]?.split("/")[0];
-          if (id) return { type: 'twitch', id, url: cleanUrl }; // Adjust if clips need different handling
-        } else {
-          // Channel
-          const id = urlObj.pathname.split("/")[1];
-          if (id) return { type: 'twitch', id, url: cleanUrl };
-        }
-      }
-
-      return { type: 'other', url: cleanUrl };
-    } catch (e) {
-      return { type: 'other', url: url || "" };
-    }
-  };
 
   const videoInfo = getEmbedUrl(video.url);
 
@@ -208,8 +121,10 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
     setIsPlayingInline(false);
   };
 
-  // Progress calculation (mock for now, but UI ready)
-  const progress = 20; // Example progress
+  // Progress calculation
+  const progressValue = (video.duration && video.duration > 0)
+    ? Math.min(100, Math.floor((localTimestamp / video.duration) * 100))
+    : 0;
 
   return (
     <>
@@ -231,39 +146,64 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
                 className="w-full h-full object-cover transition-transform duration-700 group-hover/thumb:scale-110"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-muted">
-                <Play className="w-12 h-12 text-muted-foreground/30" />
+              <div className="w-full h-full flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-800 gap-4 transition-colors">
+                <div className="w-20 h-20 rounded-full bg-white/50 dark:bg-black/20 backdrop-blur-sm flex items-center justify-center shadow-inner">
+                  {videoInfo.type === 'youtube' || videoInfo.type === 'youtube-shorts' ? (
+                    <Youtube className="w-10 h-10 text-[#FF0000] fill-[#FF0000]" />
+                  ) : videoInfo.type === 'tiktok' ? (
+                    <svg className="w-10 h-10 text-foreground" fill="currentColor" viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.06-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.03 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-3.21.05-6.42.05-9.63z" /></svg>
+                  ) : videoInfo.type === 'instagram' ? (
+                    <Instagram className="w-10 h-10 text-[#E4405F]" />
+                  ) : (
+                    <Play className="w-10 h-10 text-muted-foreground/40 fill-muted-foreground/20" />
+                  )}
+                </div>
+                <div className="px-6 text-center">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">{videoInfo.type === 'other' ? 'Video' : videoInfo.type}</p>
+                </div>
               </div>
             )}
 
-            {/* Progress Indicator - Top Left */}
-            <div className="absolute top-5 left-5 z-30">
-              <div className="relative w-12 h-12 flex items-center justify-center">
-                <svg className="w-full h-full -rotate-90">
-                  <circle
-                    cx="24"
-                    cy="24"
-                    r="20"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    fill="transparent"
-                    className="text-white/20"
-                  />
-                  <circle
-                    cx="24"
-                    cy="24"
-                    r="20"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    fill="transparent"
-                    strokeDasharray={125.6}
-                    strokeDashoffset={125.6 * (1 - progress / 100)}
-                    className="text-primary"
-                  />
-                </svg>
-                <span className="absolute text-[10px] font-black text-white">{progress}%</span>
+            {/* Progress Indicator - Top Left (Only if there is progress) */}
+            {progressValue > 0 && (
+              <div className="absolute top-5 left-5 z-30">
+                <div className="relative w-12 h-12 flex items-center justify-center">
+                  <svg className="w-full h-full -rotate-90">
+                    <circle
+                      cx="24"
+                      cy="24"
+                      r="20"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      fill="transparent"
+                      className="text-white/20"
+                    />
+                    <circle
+                      cx="24"
+                      cy="24"
+                      r="20"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      fill="transparent"
+                      strokeDasharray={125.6}
+                      strokeDashoffset={125.6 * (1 - progressValue / 100)}
+                      className="text-primary transition-all duration-500"
+                    />
+                  </svg>
+                  <span className="absolute text-[10px] font-black text-white">{progressValue}%</span>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Bottom Progress Bar - Linear indicator */}
+            {progressValue > 0 && (
+              <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-black/20 z-30">
+                <div
+                  className="h-full bg-primary transition-all duration-500"
+                  style={{ width: `${progressValue}%` }}
+                />
+              </div>
+            )}
 
             {/* Playlist Button - Top Right (left of Heart) */}
             <button
@@ -313,94 +253,33 @@ export function VideoCard({ video, onDelete, onUpdate }: VideoCardProps) {
             {isPlayingInline && (
               <div className="absolute inset-0 z-40 bg-black flex items-center justify-center">
                 <div className="w-full h-full relative">
-                  {videoInfo.type === 'tiktok' ? (
-                    <div className="w-full h-full relative z-10 overflow-hidden bg-black">
-                      <div className="absolute inset-0 scale-[1.01] origin-center">
-                        <iframe
-                          src={`https://www.tiktok.com/player/v1/${videoInfo.id}?&music_info=1&description=1&autoplay=1`}
-                          className="w-full h-full border-0"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        />
-                      </div>
-                    </div>
-                  ) : (videoInfo.type === 'youtube' || videoInfo.type === 'youtube-shorts') ? (
-                    <div className="w-full h-full bg-black">
-                      <iframe
-                        src={`https://www.youtube.com/embed/${videoInfo.id}?autoplay=1&modestbranding=1&rel=0&start=${video.lastTimestamp || 0}&enablejsapi=1${isVertical ? '&controls=0' : ''}`}
-                        className={`w-full h-full border-0 ${isVertical ? 'scale-[1.01]' : ''}`}
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                      />
-                    </div>
-                  ) : videoInfo.type === 'facebook' ? (
-                    <div className="w-full h-full bg-black">
-                      <iframe
-                        src={`https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(video.url)}&show_text=0&autoplay=1`}
-                        className="w-full h-full border-0"
-                        allow="autoplay; clipboard-write; encrypted-media; picture-in-picture"
-                        allowFullScreen
-                      />
-                    </div>
-                  ) : videoInfo.type === 'pinterest' ? (
-                    <div className="w-full h-full bg-black flex items-center justify-center">
-                      <iframe
-                        src={`https://assets.pinterest.com/ext/embed.html?id=${videoInfo.id}`}
-                        className="w-full h-full border-0"
-                        allow="autoplay"
-                      />
-                    </div>
-                  ) : (
-                    <div className="w-full h-full bg-black">
-                      <Player
-                        url={video.url}
-                        width="100%"
-                        height="100%"
-                        playing={true}
-                        controls={true}
-                        muted={false}
-                        volume={1}
-                        ref={playerRef}
-                        onProgress={({ playedSeconds }: any) => {
-                          if (playedSeconds > 0) {
-                            updateProgress(playedSeconds);
-                          }
-                        }}
-                        onPause={() => {
-                          if (playerRef.current) {
-                            saveProgress(playerRef.current.getCurrentTime());
-                          }
-                        }}
-                        onEnded={() => {
-                          if (playerRef.current) {
-                            saveProgress(playerRef.current.getCurrentTime());
-                          }
-                        }}
-                        config={{
-                          youtube: {
-                            playerVars: { start: video.lastTimestamp || 0, autoplay: 1 }
-                          },
-                          twitch: {
-                            options: {
-                              parent: [window.location.hostname],
-                              autoplay: true,
-                              muted: false
-                            }
-                          },
-                          file: {
-                            attributes: {
-                              style: { width: '100%', height: '100%', objectFit: 'contain' }
-                            }
-                          }
-                        }}
-                      />
-                    </div>
-                  )}
-                  <button
-                    onClick={handleCloseInline}
-                    className="absolute top-4 right-4 z-50 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors backdrop-blur-md"
+                  <VideoPlayerNative
+                    video={video}
+                    isActive={isPlayingInline}
+                    isVertical={isVertical}
+                    onEnded={() => {
+                      saveProgress(localTimestamp);
+                      setIsPlayingInline(false);
+                    }}
+                    onProgress={(seconds) => {
+                      if (seconds > 0) updateProgress(seconds);
+                    }}
+                    onPause={() => saveProgress(localTimestamp)}
+                    onError={() => setIsPlayingInline(false)}
+                  />
+                  {/* Close Inline Player */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-2 right-2 z-50 rounded-full bg-black/50 text-white hover:bg-black/70 backdrop-blur-md"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsPlayingInline(false);
+                      saveProgress(localTimestamp);
+                    }}
                   >
                     <XCircle className="w-6 h-6" />
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}

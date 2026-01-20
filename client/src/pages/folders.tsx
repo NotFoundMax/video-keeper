@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { Link, useLocation } from "wouter";
 import { LayoutShell } from "@/components/layout-shell";
 import { useFolders, useTags, useCreateTag, useUpdateTag, useDeleteTag, useUpdateFolder, useAddTagToFolder, useRemoveTagFromFolder, useCreateFolder, useDeleteFolder } from "@/hooks/use-folders";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Plus,
@@ -15,7 +16,8 @@ import {
   Check,
   ChevronRight,
   PlusCircle,
-  FolderPlus
+  FolderPlus,
+  ArrowLeft
 } from "lucide-react";
 import {
   Dialog,
@@ -36,6 +38,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function FoldersPage() {
+  const [, setLocation] = useLocation();
   const { data: folders, isLoading: foldersLoading } = useFolders();
   const { data: tags, isLoading: tagsLoading } = useTags();
 
@@ -59,6 +62,7 @@ export default function FoldersPage() {
   const [editingTagName, setEditingTagName] = useState("");
 
   const [selectedFolderForTags, setSelectedFolderForTags] = useState<any>(null);
+  const [newTagColor, setNewTagColor] = useState("#3b82f6");
 
   const handleCreateFolder = (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,8 +79,11 @@ export default function FoldersPage() {
   const handleCreateTag = (e: React.FormEvent) => {
     e.preventDefault();
     if (newTagName.trim()) {
-      createTag.mutate({ name: newTagName.trim() }, {
-        onSuccess: () => setNewTagName("")
+      createTag.mutate({ name: newTagName.trim(), color: newTagColor }, {
+        onSuccess: () => {
+          setNewTagName("");
+          setNewTagColor("#3b82f6");
+        }
       });
     }
   };
@@ -127,60 +134,32 @@ export default function FoldersPage() {
           <p className="text-muted-foreground font-medium">Organiza tus videos por temas y etiquetas.</p>
         </div>
 
-        {/* Folders Grid - Photo Panel Style */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Folders Grid - 2 per row as requested */}
+        <div className="grid grid-cols-2 gap-4 md:gap-6">
           {folders?.map((folder: any) => (
             <Card
               key={folder.id}
-              className="group relative overflow-hidden rounded-[2.5rem] border-none shadow-sm bg-card aspect-[4/3]"
+              onClick={() => setLocation(`/folders/${folder.id}`)}
+              className="group relative overflow-hidden rounded-[2.5rem] border-none shadow-sm bg-[#FFD93D]/10 hover:bg-[#FFD93D]/20 aspect-[4/3] cursor-pointer active:scale-95 transition-all duration-300 border-2 border-[#FFD93D]/20 hover:border-[#FFD93D]/40"
             >
-              {/* Background Image (Cover) */}
-              <div className="absolute inset-0 z-0">
-                {folder.coverUrl ? (
-                  <img
-                    src={folder.coverUrl}
-                    alt={folder.name}
-                    className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity duration-500"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-muted flex items-center justify-center">
-                    <FolderIcon className="w-16 h-16 text-muted-foreground/20" />
-                  </div>
-                )}
-                {/* Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
-              </div>
-
               {/* Content */}
               <div className="absolute inset-0 z-20 p-8 flex flex-col justify-between">
                 <div className="flex justify-between items-start">
-                  <div className="flex flex-wrap gap-2 max-w-[80%]">
-                    {folder.tags?.map((tag: any) => (
-                      <Badge
-                        key={tag.id}
-                        className="bg-white/20 backdrop-blur-md text-white border-none px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider"
-                      >
-                        {tag.name}
-                      </Badge>
-                    ))}
-                    <button
-                      onClick={() => setSelectedFolderForTags(folder)}
-                      className="w-7 h-7 rounded-lg bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/40 transition-colors"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
+                  <div className="p-4 rounded-3xl bg-[#FFD93D] shadow-lg shadow-[#FFD93D]/20 group-hover:scale-110 transition-transform duration-500">
+                    <FolderIcon className="w-8 h-8 text-[#8B7E00]" />
                   </div>
 
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-10 w-10 rounded-2xl bg-white/10 backdrop-blur-md text-white border border-white/10 hover:bg-white/20">
+                      <Button variant="ghost" size="icon" className="h-10 w-10 rounded-2xl bg-white/50 backdrop-blur-md text-foreground border border-border/40 hover:bg-white/80" onClick={(e) => e.stopPropagation()}>
                         <MoreVertical className="w-5 h-5" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="rounded-2xl border-border bg-card shadow-2xl p-2">
                       <DropdownMenuItem
                         className="rounded-xl font-bold text-muted-foreground gap-2 cursor-pointer"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           const name = prompt("Nuevo nombre:", folder.name);
                           if (name) updateFolder.mutate({ id: folder.id, name });
                         }}
@@ -189,7 +168,8 @@ export default function FoldersPage() {
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="rounded-xl font-bold text-destructive gap-2 cursor-pointer focus:text-destructive focus:bg-destructive/5"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           if (confirm("¿Eliminar carpeta? Los videos no se borrarán.")) {
                             deleteFolder.mutate(folder.id);
                           }
@@ -201,11 +181,17 @@ export default function FoldersPage() {
                   </DropdownMenu>
                 </div>
 
-                <div className="space-y-1">
-                  <h3 className="text-2xl font-black text-white leading-tight">{folder.name}</h3>
-                  <p className="text-white/70 font-bold text-sm uppercase tracking-widest">
-                    {folder.videoCount} videos
-                  </p>
+                <div className="space-y-2 mt-auto">
+                  <h3 className="text-2xl md:text-3xl font-black text-foreground leading-tight line-clamp-2">{folder.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <p className="text-muted-foreground font-black text-[10px] md:text-xs uppercase tracking-[0.2em] opacity-60">
+                      {folder.videoCount} videos
+                    </p>
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#8B7E00]/20" />
+                    <p className="text-[#8B7E00] font-black text-[10px] md:text-xs uppercase tracking-[0.2em] opacity-80">
+                      Colección
+                    </p>
+                  </div>
                 </div>
               </div>
             </Card>
@@ -214,7 +200,7 @@ export default function FoldersPage() {
           {/* Add Folder Card */}
           <button
             onClick={() => setIsCreateFolderOpen(true)}
-            className="flex flex-col items-center justify-center gap-4 rounded-[2.5rem] border-2 border-dashed border-border bg-muted/50 aspect-[4/3] text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-primary transition-all group"
+            className="flex flex-col items-center justify-center gap-4 rounded-[2.5rem] border-2 border-dashed border-border bg-muted/50 aspect-[4/3] text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-primary transition-all group active:scale-95 duration-300"
           >
             <div className="w-16 h-16 rounded-full bg-card shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform">
               <FolderPlus className="w-8 h-8" />
@@ -232,19 +218,33 @@ export default function FoldersPage() {
                 <p className="text-sm text-muted-foreground font-medium">Crea y organiza etiquetas para tus carpetas.</p>
               </div>
 
-              <form onSubmit={handleCreateTag} className="flex gap-2">
-                <Input
-                  placeholder="Nueva etiqueta..."
-                  value={newTagName}
-                  onChange={(e) => setNewTagName(e.target.value)}
-                  className="h-12 rounded-xl bg-muted border-none focus-visible:ring-primary/20 text-foreground"
-                />
-                <Button type="submit" className="h-12 rounded-xl px-6 font-bold" disabled={createTag.isPending}>
-                  Añadir
-                </Button>
-              </form>
+              <div className="space-y-4 pt-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Elegir Color</p>
+                <div className="flex flex-wrap gap-2">
+                  {["#ef4444", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899", "#6366f1", "#14b8a6"].map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setNewTagColor(color)}
+                      className={`w-8 h-8 rounded-full border-2 transition-all ${newTagColor === color ? "border-foreground scale-110 shadow-lg" : "border-transparent opacity-60 hover:opacity-100"}`}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
+                <form onSubmit={handleCreateTag} className="flex gap-2">
+                  <Input
+                    placeholder="Nueva etiqueta..."
+                    value={newTagName}
+                    onChange={(e) => setNewTagName(e.target.value)}
+                    className="h-12 rounded-xl bg-muted border-none focus-visible:ring-primary/20 text-foreground font-bold"
+                  />
+                  <Button type="submit" className="h-12 rounded-xl px-6 font-bold" disabled={createTag.isPending}>
+                    Añadir
+                  </Button>
+                </form>
+              </div>
 
-              <ScrollArea className="h-[300px] pr-4">
+              <ScrollArea className="h-[250px] pr-4">
                 <div className="space-y-2">
                   {tags?.map((tag: any) => (
                     <div key={tag.id} className="flex items-center justify-between p-3 rounded-xl bg-muted group">

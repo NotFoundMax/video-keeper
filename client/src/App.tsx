@@ -18,6 +18,7 @@ import FoldersPage from "@/pages/folders";
 import QuickAdd from "@/pages/quick-add";
 import PlaylistPage from "@/pages/playlist";
 import PlaylistsPage from "@/pages/playlists";
+import FolderDetail from "@/pages/folder-detail";
 
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -52,6 +53,9 @@ function Router() {
       </Route>
       <Route path="/folders">
         <ProtectedRoute component={FoldersPage} />
+      </Route>
+      <Route path="/folders/:id">
+        <ProtectedRoute component={FolderDetail} />
       </Route>
       <Route path="/playlists">
         <ProtectedRoute component={PlaylistsPage} />

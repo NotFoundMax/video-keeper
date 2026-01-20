@@ -1,98 +1,33 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useLocation, useRoute } from "wouter";
-import { Play, Pause, SkipForward, SkipBack, List, X, Shuffle, Repeat, ChevronLeft, Loader2, Trash2, ListVideo, CheckCircle2 } from "lucide-react";
+import { Play, Pause, SkipForward, SkipBack, List, X, Shuffle, Repeat, ChevronLeft, Loader2, Trash2, ListVideo, CheckCircle2, GripVertical } from "lucide-react";
 import { usePlaylist, usePlaylistVideos } from "@/hooks/use-playlists";
 import { LayoutShell } from "@/components/layout-shell";
 import { Button } from "@/components/ui/button";
 import ReactPlayer from "react-player";
 import { motion, AnimatePresence } from "framer-motion";
+import { VideoPlayerNative, getEmbedUrl } from "@/components/video-player-native";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 const Player = ReactPlayer as any;
 
 // Move helper functions OUTSIDE the component to avoid any confusion and re-definitions
-const getEmbedUrl = (url: string): { type: 'youtube' | 'youtube-shorts' | 'tiktok' | 'vimeo' | 'facebook' | 'instagram' | 'pinterest' | 'twitch' | 'other'; id?: string; url?: string } => {
-  try {
-    let cleanUrl = (url || "").trim();
-    if (!cleanUrl) return { type: 'other', url: '' };
-
-    if (!cleanUrl.startsWith("http")) cleanUrl = "https://" + cleanUrl;
-    const urlObj = new URL(cleanUrl);
-
-    // YouTube
-    if (urlObj.hostname.includes("youtube.com") || urlObj.hostname.includes("youtu.be")) {
-      let videoId = "";
-      let isShort = false;
-
-      if (urlObj.hostname.includes("youtu.be")) {
-        videoId = urlObj.pathname.slice(1);
-      } else if (urlObj.pathname.includes("/shorts/")) {
-        videoId = urlObj.pathname.split("/shorts/")[1];
-        isShort = true;
-      } else {
-        videoId = urlObj.searchParams.get("v") || "";
-      }
-
-      if (videoId) {
-        return {
-          type: isShort ? 'youtube-shorts' : 'youtube',
-          id: videoId.split('&')[0],
-          url: cleanUrl
-        };
-      }
-    }
-
-    // TikTok
-    if (urlObj.hostname.includes("tiktok.com")) {
-      const matches = urlObj.pathname.match(/\/video\/(\d+)/) || urlObj.pathname.match(/\/(\d+)\/?$/);
-      const id = matches ? matches[1] : null;
-
-      if (id) return { type: 'tiktok', id, url: cleanUrl };
-      return { type: 'other', url: cleanUrl };
-    }
-
-    // Vimeo
-    if (urlObj.hostname.includes("vimeo.com")) {
-      const parts = urlObj.pathname.split('/');
-      const id = parts.find(p => /^\d+$/.test(p));
-      if (id) return { type: 'vimeo', id, url: cleanUrl };
-    }
-
-    // Facebook
-    if (urlObj.hostname.includes("facebook.com") || urlObj.hostname.includes("fb.watch")) {
-      return { type: 'facebook', url: cleanUrl };
-    }
-
-    // Instagram
-    if (urlObj.hostname.includes("instagram.com")) {
-      return { type: 'instagram', url: cleanUrl };
-    }
-
-    // Pinterest
-    if (urlObj.hostname.includes("pinterest.com") || urlObj.hostname.includes("pin.it")) {
-      const matches = urlObj.pathname.match(/\/pin\/(\d+)/) || urlObj.pathname.match(/\/(\d+)\/?$/);
-      const id = matches ? matches[1] : null;
-      if (id) return { type: 'pinterest', id, url: cleanUrl };
-    }
-
-    // Twitch
-    if (urlObj.hostname.includes("twitch.tv")) {
-      if (urlObj.pathname.includes("/videos/")) {
-        const id = urlObj.pathname.split("/videos/")[1]?.split("/")[0];
-        if (id) return { type: 'twitch', id, url: cleanUrl };
-      } else if (urlObj.pathname.includes("/clip/")) {
-        const id = urlObj.pathname.split("/clip/")[1]?.split("/")[0];
-        if (id) return { type: 'twitch', id, url: cleanUrl };
-      } else {
-        const id = urlObj.pathname.split("/")[1];
-        if (id) return { type: 'twitch', id, url: cleanUrl };
-      }
-    }
-
-    return { type: 'other', url: cleanUrl };
-  } catch (e) {
-    return { type: 'other', url: url || "" };
-  }
-};
 
 // Specialized Feed Item Component
 function PlaylistFeedItem({
@@ -204,87 +139,17 @@ function PlaylistFeedItem({
               </div>
             )}
 
-            {videoInfo.type === 'pinterest' ? (
-              isActive && (
-                <iframe
-                  src={`https://assets.pinterest.com/ext/embed.html?id=${videoInfo.id}`}
-                  className="w-full h-full border-0"
-                  allow="autoplay"
-                />
-              )
-            ) : videoInfo.type === 'tiktok' ? (
-              isActive && (
-                <iframe
-                  src={`https://www.tiktok.com/player/v1/${videoInfo.id}?&music_info=1&description=1&autoplay=1&muted=0`}
-                  className="w-full h-full border-0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                />
-              )
-            ) : videoInfo.type === 'youtube-shorts' ? (
-              isActive && (
-                <iframe
-                  src={`https://www.youtube.com/embed/${videoInfo.id}?autoplay=1&modestbranding=1&rel=0&origin=${window.location.origin}&controls=0`}
-                  className="w-full h-full border-0 scale-[1.01]"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                />
-              )
-            ) : (
-              <Player
-                ref={playerRef}
-                url={video.url}
-                playing={isActive}
-                controls={true}
-                width="100%"
-                height="100%"
+            {isActive && (
+              <VideoPlayerNative
+                video={video}
+                isActive={isActive}
+                isVertical={isVertical}
                 onEnded={onEnded}
-                onPlay={() => setHasStartedPlaying(true)}
                 onError={() => setHasError(true)}
-                muted={false}
-                volume={1}
-                playsinline={true}
-                config={{
-                  youtube: {
-                    playerVars: {
-                      autoplay: 1,
-                      modestbranding: 1,
-                      rel: 0,
-                      origin: window.location.origin,
-                      cc_load_policy: 0,
-                      iv_load_policy: 3
-                    }
-                  },
-                  facebook: {
-                    attributes: { autoplay: 1, muted: 0 }
-                  },
-                  twitch: {
-                    options: {
-                      parent: [window.location.hostname],
-                      autoplay: true
-                    }
-                  }
-                }}
               />
             )}
 
-            {/* If video is active but hasn't started playing after timeout, show overlay */}
-            {isActive && !hasStartedPlaying && !hasError && videoInfo.type !== 'pinterest' && videoInfo.type !== 'tiktok' && videoInfo.type !== 'youtube-shorts' && (
-              <div
-                className="absolute inset-0 z-30 bg-black/40 flex items-center justify-center cursor-pointer backdrop-blur-[2px]"
-                onClick={() => {
-                  if (playerRef.current) {
-                    // Try to trigger play on click to satisfy browser interaction policy
-                    setHasStartedPlaying(true);
-                  }
-                }}
-              >
-                <div className="flex flex-col items-center gap-4">
-                  <div className="h-24 w-24 rounded-full bg-primary/90 text-primary-foreground flex items-center justify-center shadow-2xl animate-pulse">
-                    <Play className="w-10 h-10 fill-current ml-1" />
-                  </div>
-                  <p className="text-white font-black text-sm uppercase tracking-widest drop-shadow-lg">Toca para reproducir con sonido</p>
-                </div>
-              </div>
-            )}
+            {/* Removed "Tap to play" overlay as per user request */}
 
             {hasError && isActive && (
               <div className="absolute inset-0 z-20 bg-black/80 flex flex-col items-center justify-center p-8 text-center gap-4">
@@ -308,24 +173,128 @@ function PlaylistFeedItem({
   );
 }
 
+function SortableVideoItem({ video, index, currentIndex, onSelect }: { video: any; index: number; currentIndex: number; onSelect: () => void; }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: video.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 2 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`relative group ${isDragging ? 'z-50' : ''}`}
+    >
+      <div className={`flex items-center gap-2 p-2 rounded-3xl transition-all ${index === currentIndex ? 'bg-primary/10 ring-1 ring-primary/20' : 'hover:bg-muted/50'}`}>
+        {/* Professional Drag Handle */}
+        <div
+          {...attributes}
+          {...listeners}
+          className="p-2 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <GripVertical className="w-5 h-5 opacity-40 group-hover:opacity-100" />
+        </div>
+
+        <button
+          onClick={onSelect}
+          className={`flex-1 p-3 rounded-2xl text-left transition-all relative overflow-hidden active:scale-[0.98] ${index === currentIndex
+            ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+            : 'bg-card text-foreground hover:bg-muted border border-border/50'
+            } ${isDragging ? 'opacity-0' : 'opacity-100'}`}
+        >
+          <div className="flex items-start gap-4 relative z-10">
+            <span className={`text-[10px] font-black h-5 w-5 rounded-full flex items-center justify-center shrink-0 ${index === currentIndex ? 'bg-primary-foreground/20' : 'bg-muted'}`}>{index + 1}</span>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-black text-sm line-clamp-1 leading-tight">{video.title}</h3>
+              {video.authorName && (
+                <p className={`text-[9px] uppercase tracking-widest font-black mt-1 ${index === currentIndex ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{video.authorName}</p>
+              )}
+            </div>
+          </div>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function PlaylistPage() {
   const [, params] = useRoute("/playlists/:id");
   const [, setLocation] = useLocation();
   const playlistId = params?.id ? parseInt(params.id) : undefined;
 
   const { data: playlist, isLoading } = usePlaylist(playlistId || 0);
-  const videos = playlist?.videos;
+  const { reorderVideos } = usePlaylistVideos(playlistId || 0);
 
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [localVideos, setLocalVideos] = useState<any[]>([]);
   const [hasStarted, setHasStarted] = useState(false);
   const [showPlaylist, setShowPlaylist] = useState(false);
+  const [activeId, setActiveId] = useState<number | null>(null);
   const videoRefs = useRef<(HTMLDivElement | null)[]>([]);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  useEffect(() => {
+    if (playlist?.videos) {
+      setLocalVideos(playlist.videos);
+    }
+  }, [playlist?.videos]);
+
+  const videos = localVideos;
 
   const handleNext = () => {
     if (videos && currentIndex < videos.length - 1) {
       const nextIndex = currentIndex + 1;
       setCurrentIndex(nextIndex);
+    }
+  };
+
+  const handleDragStart = (event: any) => {
+    setActiveId(event.active.id);
+  };
+
+  const handleDragEnd = (event: any) => {
+    const { active, over } = event;
+    setActiveId(null);
+
+    if (over && active.id !== over.id) {
+      const oldIndex = videos.findIndex((v) => v.id === active.id);
+      const newIndex = videos.findIndex((v) => v.id === over.id);
+
+      const newOrder = arrayMove(videos, oldIndex, newIndex);
+      setLocalVideos(newOrder);
+
+      // Persist to backend
+      reorderVideos.mutate(newOrder.map(v => v.id));
+
+      // Adjust current index if necessary
+      if (currentIndex === oldIndex) {
+        setCurrentIndex(newIndex);
+      } else if (currentIndex > oldIndex && currentIndex <= newIndex) {
+        setCurrentIndex(currentIndex - 1);
+      } else if (currentIndex < oldIndex && currentIndex >= newIndex) {
+        setCurrentIndex(currentIndex + 1);
+      }
     }
   };
 
@@ -512,29 +481,40 @@ export default function PlaylistPage() {
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-                  {videos.map((video: any, index: number) => (
-                    <button
-                      key={video.id}
-                      onClick={() => handleSelectVideo(index)}
-                      className={`w-full p-4 rounded-3xl text-left transition-all group relative overflow-hidden ${index === currentIndex
-                        ? 'bg-primary text-primary-foreground shadow-xl shadow-primary/20'
-                        : 'bg-muted text-foreground hover:bg-muted/80 border border-transparent hover:border-border'
-                        }`}
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={videos.map(v => v.id)}
+                      strategy={verticalListSortingStrategy}
                     >
-                      <div className="flex items-start gap-4 relative z-10">
-                        <span className={`text-xs font-black h-6 w-6 rounded-full flex items-center justify-center ${index === currentIndex ? 'bg-primary-foreground/20' : 'bg-background'}`}>{index + 1}</span>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-black text-sm line-clamp-2 leading-tight">{video.title}</h3>
-                          {video.authorName && (
-                            <p className={`text-[10px] uppercase tracking-widest font-black mt-2 ${index === currentIndex ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{video.authorName}</p>
-                          )}
+                      {videos.map((video: any, index: number) => (
+                        <SortableVideoItem
+                          key={video.id}
+                          video={video}
+                          index={index}
+                          currentIndex={currentIndex}
+                          onSelect={() => handleSelectVideo(index)}
+                        />
+                      ))}
+                    </SortableContext>
+                    <DragOverlay>
+                      {activeId ? (
+                        <div className="w-[calc(100%-1rem)] bg-primary text-primary-foreground p-4 rounded-2xl shadow-2xl opacity-90 backdrop-blur-md border border-primary/20 rotate-1 scale-105 transition-transform">
+                          <div className="flex items-start gap-4">
+                            <GripVertical className="w-5 h-5 opacity-40" />
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-black text-sm line-clamp-1">{videos.find(v => v.id === activeId)?.title}</h3>
+                              <p className="text-[10px] uppercase tracking-widest font-black mt-1 opacity-70">Moviendo video...</p>
+                            </div>
+                          </div>
                         </div>
-                        {index === currentIndex && (
-                          <div className="h-2 w-2 rounded-full bg-primary-foreground animate-pulse mt-2" />
-                        )}
-                      </div>
-                    </button>
-                  ))}
+                      ) : null}
+                    </DragOverlay>
+                  </DndContext>
                 </div>
               </div>
             </motion.div>

@@ -8,6 +8,7 @@ export interface IAuthStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: any): Promise<User>;
   upsertUser(user: UpsertUser): Promise<User>;
+  updateUser(id: number, updates: Partial<User>): Promise<User | undefined>;
 }
 
 class AuthStorage implements IAuthStorage {
@@ -42,6 +43,15 @@ class AuthStorage implements IAuthStorage {
           profileImageUrl: userData.profileImageUrl,
         },
       })
+      .returning();
+    return user;
+  }
+
+  async updateUser(id: number, updates: Partial<User>): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, id))
       .returning();
     return user;
   }

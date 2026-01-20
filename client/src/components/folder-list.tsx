@@ -63,43 +63,22 @@ export function FolderList({ selectedFolderId, onSelectFolder, layout = "vertica
             key={folder.id}
             onClick={() => onSelectFolder(folder.id)}
             className={`flex-shrink-0 w-48 p-5 rounded-[2.5rem] border-none text-left flex flex-col gap-4 transition-all duration-500 group relative overflow-hidden ${selectedFolderId === folder.id
-              ? "bg-primary text-primary-foreground shadow-2xl shadow-primary/30 scale-[1.02]"
-              : "bg-card text-foreground shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] hover:shadow-xl hover:translate-y-[-4px] border-none"
+              ? "bg-[#FFD93D] text-[#8B7E00] shadow-2xl shadow-[#FFD93D]/30 scale-[1.02]"
+              : "bg-[#FFD93D]/10 text-foreground border-2 border-[#FFD93D]/20 hover:bg-[#FFD93D]/20 hover:border-[#FFD93D]/40 hover:translate-y-[-4px]"
               }`}
           >
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center overflow-hidden transition-all duration-500 ${selectedFolderId === folder.id ? "bg-white/20 scale-110" : "bg-secondary group-hover:scale-110"}`}>
-              {folder.coverUrl ? (
-                <img src={folder.coverUrl} alt={folder.name} className="w-full h-full object-cover" />
-              ) : (
-                <FolderIcon className={`w-7 h-7 ${selectedFolderId === folder.id ? "text-white" : "text-indigo-500"}`} />
-              )}
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center overflow-hidden transition-all duration-500 ${selectedFolderId === folder.id ? "bg-[#8B7E00]/20 scale-110" : "bg-[#FFD93D] group-hover:scale-110"}`}>
+              <FolderIcon className={`w-7 h-7 ${selectedFolderId === folder.id ? "text-[#8B7E00]" : "text-[#8B7E00]"}`} />
             </div>
 
             <div className="space-y-1">
               <h3 className="font-black text-base leading-tight truncate">{folder.name}</h3>
-              <p className={`text-[10px] font-black uppercase tracking-widest ${selectedFolderId === folder.id ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+              <p className={`text-[10px] font-black uppercase tracking-widest ${selectedFolderId === folder.id ? "text-[#8B7E00]/70" : "text-muted-foreground"}`}>
                 {(folder as any).videoCount || 0} videos
               </p>
             </div>
 
-            {/* Tag indicators at bottom */}
-            {folder.tags && folder.tags.length > 0 && (
-              <div className="flex gap-1.5 mt-auto pt-2">
-                {folder.tags.slice(0, 4).map(tag => (
-                  <div
-                    key={tag.id}
-                    className="w-1.5 h-1.5 rounded-full"
-                    style={{ backgroundColor: tag.color || '#3b82f6' }}
-                    title={tag.name}
-                  />
-                ))}
-                {folder.tags.length > 4 && (
-                  <div className={`w-1.5 h-1.5 rounded-full flex items-center justify-center text-[5px] font-black ${selectedFolderId === folder.id ? 'bg-white/40' : 'bg-slate-200'}`}>
-                    +
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="flex-1" />
           </button>
         ))}
       </div>
@@ -182,21 +161,17 @@ export function FolderList({ selectedFolderId, onSelectFolder, layout = "vertica
             >
               <button
                 onClick={() => onSelectFolder(folder.id)}
-                className={`w-full flex items-center gap-4 p-4 rounded-2xl text-left ${selectedFolderId === folder.id
-                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-                  : "bg-card border border-border text-foreground hover:bg-muted/50 transition-colors"
+                className={`w-full flex items-center gap-4 p-4 rounded-2xl text-left transition-all duration-300 ${selectedFolderId === folder.id
+                  ? "bg-[#FFD93D] text-[#8B7E00] shadow-lg shadow-[#FFD93D]/20 scale-[1.02]"
+                  : "bg-[#FFD93D]/10 border-2 border-[#FFD93D]/10 text-foreground hover:bg-[#FFD93D]/20 hover:border-[#FFD93D]/30"
                   }`}
               >
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden ${selectedFolderId === folder.id ? "bg-white/20" : "bg-slate-50"}`}>
-                  {folder.coverUrl ? (
-                    <img src={folder.coverUrl} alt={folder.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <FolderIcon className="w-5 h-5" />
-                  )}
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden transition-colors ${selectedFolderId === folder.id ? "bg-[#8B7E00]/20" : "bg-[#FFD93D]"}`}>
+                  <FolderIcon className={`w-5 h-5 ${selectedFolderId === folder.id ? "text-[#8B7E00]" : "text-[#8B7E00]"}`} />
                 </div>
                 <div className="flex-1 overflow-hidden">
-                  <span className="font-bold truncate block">{folder.name}</span>
-                  <span className={`text-[10px] font-medium ${selectedFolderId === folder.id ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                  <span className="font-black truncate block">{folder.name}</span>
+                  <span className={`text-[10px] font-black uppercase tracking-widest ${selectedFolderId === folder.id ? "text-[#8B7E00]/70" : "text-muted-foreground"}`}>
                     {(folder as any).videoCount || 0} videos
                   </span>
                 </div>
@@ -270,18 +245,7 @@ export function FolderList({ selectedFolderId, onSelectFolder, layout = "vertica
                     </div>
                   </PopoverContent>
                 </Popover>
-                {folder.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {folder.tags.map((tag) => (
-                      <div
-                        key={tag.id}
-                        className="w-2 h-2 rounded-full shadow-sm"
-                        style={{ backgroundColor: tag.color || '#3b82f6' }}
-                        title={tag.name}
-                      />
-                    ))}
-                  </div>
-                )}
+                <div className="flex-1" />
               </button>
             </motion.div>
           ))}

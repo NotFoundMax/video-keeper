@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import { setupAuth, isAuthenticated } from "./auth";
+import { authStorage } from "./replit_integrations/auth/storage";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -11,6 +12,22 @@ export async function registerRoutes(
 ): Promise<Server> {
   // 1. Setup Auth
   setupAuth(app);
+
+  // User Profile Routes
+  app.patch("/api/user", isAuthenticated, async (req, res) => {
+    // @ts-ignore
+    const userId = req.user!.id;
+    const { firstName, lastName, profileImageUrl } = req.body;
+    
+    const updated = await authStorage.updateUser(userId, { 
+      firstName, 
+      lastName, 
+      profileImageUrl,
+      updatedAt: new Date()
+    });
+    
+    res.json(updated);
+  });
 
 
 
@@ -244,7 +261,8 @@ export async function registerRoutes(
         authorName: "", 
         duration: 0,
         platform, 
-        aspectRatio: "auto" 
+        aspectRatio: "auto",
+        embedHtml: ""
       };
       
       // Auto-detect verticality
@@ -257,7 +275,17 @@ export async function registerRoutes(
         if (platform === "youtube") oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(resolvedUrl)}&format=json`;
         else if (platform === "tiktok") oembedUrl = `https://www.tiktok.com/oembed?url=${encodeURIComponent(resolvedUrl)}`;
         else if (platform === "vimeo") oembedUrl = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(resolvedUrl)}`;
-        else if (platform === "instagram") oembedUrl = `https://api.instagram.com/oembed/?url=${encodeURIComponent(resolvedUrl)}`;
+        else if (platform === "instagram" || platform === "facebook") {
+          const accessToken = process.env.INSTAGRAM_ACCESS_TOKEN || process.env.FACEBOOK_APP_TOKEN;
+          const endpoint = platform === "instagram" ? "instagram_oembed" : "oembed_video";
+          if (accessToken) {
+            oembedUrl = `https://graph.facebook.com/v24.0/${endpoint}?url=${encodeURIComponent(resolvedUrl)}&access_token=${accessToken}&fields=thumbnail_url,title,author_name,provider_name,html`;
+          } else {
+            oembedUrl = platform === "instagram" 
+              ? `https://api.instagram.com/oembed/?url=${encodeURIComponent(resolvedUrl)}`
+              : `https://www.facebook.com/plugins/video/oembed.json?url=${encodeURIComponent(resolvedUrl)}`;
+          }
+        }
         else if (platform === "pinterest") oembedUrl = `https://www.pinterest.com/oembed.json?url=${encodeURIComponent(resolvedUrl)}`;
         else if (platform === "twitch") oembedUrl = `https://www.twitch.tv/oembed?url=${encodeURIComponent(resolvedUrl)}`;
 
@@ -270,8 +298,10 @@ export async function registerRoutes(
           if (response.ok) {
             const data = await response.json() as any;
             metadata.title = data.title || metadata.title;
+            // The Graph API returns 'title', old API returns 'title' or we fallback to 'Video'
             metadata.thumbnail = data.thumbnail_url || "";
             metadata.authorName = data.author_name || "";
+            metadata.embedHtml = data.html || "";
             
             // Extract duration if available
             if (data.duration) {
@@ -294,7 +324,15 @@ export async function registerRoutes(
           let userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
           
           if (platform === "facebook" || platform === "instagram") {
-            // Use mobile version as it's often less restrictive for scraping meta tags
+            // For Instagram, fetching the main URL with a mobile bot UA often provides meta tags
+            if (platform === "instagram") {
+              fetchUrl = resolvedUrl.replace(/\/$/, '') + '/';
+              // Check if it's a Reel and ensure we have the right format
+              if (fetchUrl.includes('/reels/') || fetchUrl.includes('/reel/')) {
+                 // Reels work best with either the main URL or /embed/
+              }
+            }
+            
             if (platform === "facebook") {
               fetchUrl = resolvedUrl.replace('www.facebook.com', 'm.facebook.com');
               if (!fetchUrl.includes('m.facebook.com')) {
@@ -302,12 +340,6 @@ export async function registerRoutes(
                 urlObj.hostname = 'm.facebook.com';
                 fetchUrl = urlObj.toString();
               }
-            }
-            // For Instagram, sometimes adding /embed/ helps get metadata without login
-            if (platform === "instagram" && !resolvedUrl.includes('/embed/')) {
-              const urlObj = new URL(resolvedUrl);
-              urlObj.pathname = urlObj.pathname.replace(/\/$/, '') + '/embed/';
-              fetchUrl = urlObj.toString();
             }
             userAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1';
           }
@@ -405,12 +437,38 @@ export async function registerRoutes(
             }
             
             // Extract title if not already set by oEmbed/JSON-LD
-            if (metadata.title === "Video") {
+            if (metadata.title === "Video" || metadata.title === "Instagram" || metadata.title === "Twitch") {
+              // Priority 1: og:title
               const ogTitleMatch = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) || 
-                                  html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i) ||
-                                  html.match(/<title>([^<]+)<\/title>/i);
-              if (ogTitleMatch) {
-                metadata.title = ogTitleMatch[1].replace(/&amp;/g, '&').trim();
+                                  html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i);
+              
+              // Priority 2: specifically for Instagram Embeds
+              let instaTitle = null;
+              if (platform === "instagram") {
+                const instaMatch = html.match(/["']caption["']:\s*["']([^"']+)["']/i) || 
+                                   html.match(/["']media_title["']:\s*["']([^"']+)["']/i);
+                if (instaMatch) instaTitle = instaMatch[1].replace(/\\u0026/g, '&').replace(/\\n/g, ' ');
+              }
+
+              // Priority 3: Meta description (often better for Instagram/TikTok if title is generic)
+              const descMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
+                               html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i);
+
+              // Priority 4: <title> tag
+              const titleTagMatch = html.match(/<title>([^<]+)<\/title>/i);
+
+              if (instaTitle) {
+                metadata.title = instaTitle;
+              } else if (ogTitleMatch && ogTitleMatch[1] !== "Instagram" && ogTitleMatch[1] !== "Twitch") {
+                metadata.title = ogTitleMatch[1];
+              } else if (titleTagMatch && titleTagMatch[1] !== "Instagram" && titleTagMatch[1] !== "Twitch") {
+                metadata.title = titleTagMatch[1];
+              } else if (descMatch) {
+                metadata.title = descMatch[1];
+              }
+
+              if (metadata.title) {
+                metadata.title = metadata.title.replace(/&amp;/g, '&').trim();
               }
             }
           }
@@ -478,13 +536,21 @@ export async function registerRoutes(
   });
 
   app.get("/api/videos/bookmarklet-code", isAuthenticated, (req, res) => {
+    // Determine the base URL dynamically or from env
     const host = req.get('host') || 'localhost:5000';
-    const protocol = req.protocol;
+    const protocol = req.protocol === 'https' ? 'https' : (host.includes('localhost') || host.includes('127.0.0.1') ? 'http' : 'https');
     const appUrl = `${protocol}://${host}`;
     
-    // New simple approach: redirect to /quick-add with video data
-    // This avoids ALL CORS and Private Network Access issues
-    const code = `javascript:(function(){location.href='${appUrl}/quick-add?url='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title)+'&source=bookmarklet';})();`.replace(/\n\s*/g, '');
+    // Improved bookmarklet using window.open to avoid leaving the current page
+    // and using a robust window name 'videoKeeperPopup'
+    const code = `javascript:(function(){
+      var url = window.location.href;
+      var title = document.title;
+      var popup = window.open('${appUrl}/quick-add?url='+encodeURIComponent(url)+'&title='+encodeURIComponent(title)+'&source=bookmarklet', 'videoKeeperPopup', 'width=450,height=600,menubar=no,toolbar=no,location=no,status=no');
+      if(!popup || popup.closed || typeof popup.closed == 'undefined') {
+        alert('Parece que el bloqueador de ventanas emergentes está activo. Por favor, permite ventanas emergentes para este sitio.');
+      }
+    })();`.replace(/\n\s*/g, '');
     
     res.json({ code });
   });
@@ -603,8 +669,8 @@ export async function resolveUrlRedirects(url: string): Promise<string> {
       });
       clearTimeout(id);
       
-      // If it's a Facebook share URL and didn't redirect, try to scrape og:url
-      if (url.includes("facebook.com/share/") && response.url === url) {
+      // If it's a Facebook share/watch URL and didn't redirect, try to scrape og:url
+      if ((url.includes("facebook.com/share/") || url.includes("fb.watch/")) && response.url === url) {
         const html = await response.text();
         const ogUrlMatch = html.match(/<meta[^>]+property=["']og:url["'][^>]+content=["']([^"']+)["']/i) ||
                           html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:url["']/i);

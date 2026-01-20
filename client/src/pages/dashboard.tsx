@@ -176,8 +176,7 @@ export default function Dashboard() {
           {[
             { label: "Videos", value: stats.totalVideos, icon: VideoIcon, color: "text-blue-500", bg: "bg-blue-500/10" },
             { label: "Carpetas", value: stats.totalFolders, icon: Folder, color: "text-purple-500", bg: "bg-purple-500/10" },
-            { label: "Playlists", value: stats.totalPlaylists, icon: ListVideo, color: "text-pink-500", bg: "bg-pink-500/10" },
-            { label: "Tiempo total", value: formatDuration(stats.totalDuration), icon: Music, color: "text-amber-500", bg: "bg-amber-500/10" }
+            { label: "Playlists", value: stats.totalPlaylists, icon: ListVideo, color: "text-pink-500", bg: "bg-pink-500/10" }
           ].map((stat, i) => (
             <motion.div
               key={i}
@@ -185,7 +184,6 @@ export default function Dashboard() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.05 }}
               className="flex items-center gap-3 bg-card/40 border border-border/40 rounded-2xl py-2.5 px-4 shadow-sm hover:shadow-md hover:border-primary/20 transition-all cursor-default shrink-0"
-              title={stat.label === "Tiempo total" ? "Sumatoria de los minutos de los videos detectados en esta vista" : undefined}
             >
               <div className={`w-8 h-8 rounded-lg ${stat.bg} ${stat.color} flex items-center justify-center shrink-0`}>
                 <stat.icon className="w-4 h-4" />
@@ -197,6 +195,62 @@ export default function Dashboard() {
             </motion.div>
           ))}
         </div>
+
+        {/* Continue Watching Section - Only if there are videos in progress */}
+        {allVideos && allVideos.filter((v: any) => {
+          if (!v.duration || v.duration === 0) return false;
+          const progress = (v.lastTimestamp / v.duration) * 100;
+          return progress > 3 && progress < 95;
+        }).length > 0 && (
+            <section className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500">
+                    <Play className="w-5 h-5 fill-current" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-foreground tracking-tight">Continuar viendo</h2>
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Retoma donde lo dejaste</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {allVideos
+                  .filter((v: any) => {
+                    if (!v.duration || v.duration === 0) return false;
+                    const progress = (v.lastTimestamp / v.duration) * 100;
+                    return progress > 3 && progress < 95;
+                  })
+                  .slice(0, 4)
+                  .map((video: any) => (
+                    <motion.div
+                      key={`cw-${video.id}`}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="group relative h-40 rounded-3xl overflow-hidden cursor-pointer shadow-sm hover:shadow-xl transition-all"
+                      onClick={() => {
+                        // Triggers the same search to find the video easily
+                        setSearch(video.title);
+                        window.scrollTo({ top: 600, behavior: 'smooth' });
+                      }}
+                    >
+                      <img src={video.thumbnailUrl} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+                      <div className="absolute bottom-4 left-4 right-4">
+                        <p className="text-white font-black text-[10px] line-clamp-1 mb-2 uppercase tracking-tight">{video.title}</p>
+                        <div className="h-1.5 w-full bg-white/20 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-primary"
+                            style={{ width: `${Math.round((video.lastTimestamp / video.duration) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+              </div>
+            </section>
+          )}
 
 
         {/* Recently Added Section */}

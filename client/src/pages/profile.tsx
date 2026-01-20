@@ -1,20 +1,43 @@
 import { useAuth } from "@/hooks/use-auth";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useRef } from "react";
 import { LayoutShell } from "@/components/layout-shell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { LogOut, User as UserIcon, Mail, Shield, Share2, Copy, MousePointer2, AlertCircle, Zap, Download, Upload, Database } from "lucide-react";
+import { LogOut, User as UserIcon, Mail, Shield, Share2, Copy, MousePointer2, AlertCircle, Zap, Download, Upload, Database, RefreshCw, CheckCircle2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { exportCollection, downloadJSON, importCollection } from "@/lib/export-import";
+import { apiRequest } from "@/lib/queryClient";
+import { Input } from "@/components/ui/input";
 
 export default function Profile() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+
+  const [firstName, setFirstName] = useState(user?.firstName || "");
+  const [lastName, setLastName] = useState(user?.lastName || "");
+  const [avatarSeed, setAvatarSeed] = useState(user?.profileImageUrl?.split('seed=')[1] || user?.username || "default");
+
+  const profileImageUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}`;
+
+  const updateProfile = useMutation({
+    mutationFn: async (data: { firstName: string, lastName: string, profileImageUrl: string }) => {
+      const res = await apiRequest("PATCH", "/api/user", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      toast({
+        title: "✅ Perfil actualizado",
+        description: "Tus cambios han sido guardados correctamente",
+      });
+    },
+  });
 
   if (!user) return null;
 
@@ -91,44 +114,74 @@ export default function Profile() {
         </div>
 
         <div className="bg-card rounded-[2.5rem] p-10 shadow-sm border border-border flex flex-col items-center">
-          <Avatar className="w-32 h-32 mb-6 ring-8 ring-muted shadow-inner">
-            <AvatarImage src={user.profileImageUrl ?? undefined} />
-            <AvatarFallback className="text-3xl bg-primary text-primary-foreground font-bold">
-              {user.firstName?.[0]}{user.lastName?.[0]}
-            </AvatarFallback>
-          </Avatar>
+          <div className="relative group mb-8">
+            <Avatar className="w-40 h-40 ring-8 ring-muted shadow-2xl transition-transform group-hover:scale-105 duration-500">
+              <AvatarImage src={profileImageUrl} />
+              <AvatarFallback className="text-4xl bg-primary text-primary-foreground font-bold">
+                {firstName?.[0]}{lastName?.[0]}
+              </AvatarFallback>
+            </Avatar>
+            <button
+              onClick={() => setAvatarSeed(Math.random().toString(36).substring(7))}
+              className="absolute bottom-2 right-2 p-3 bg-primary text-white rounded-2xl shadow-xl hover:bg-primary/90 hover:rotate-180 transition-all duration-500 active:scale-90"
+              title="Cambiar Avatar"
+            >
+              <RefreshCw className="w-5 h-5" />
+            </button>
+          </div>
 
-          <h2 className="text-3xl font-bold text-foreground">{user.firstName} {user.lastName}</h2>
-          <p className="text-muted-foreground font-medium mt-1">Usuario desde 2024</p>
-
-          <div className="w-full grid grid-cols-1 gap-4 mt-10">
-            <div className="flex items-center p-6 rounded-3xl bg-muted border-none group hover:bg-muted/80 transition-colors">
-              <div className="w-12 h-12 rounded-2xl bg-card flex items-center justify-center shadow-sm mr-4 group-hover:scale-110 transition-transform">
-                <UserIcon className="w-6 h-6 text-primary" />
+          <div className="w-full space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Nombre</label>
+                <Input
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="h-14 rounded-2xl bg-muted border-none focus-visible:ring-2 focus-visible:ring-primary/20 text-lg font-bold"
+                />
               </div>
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-0.5">Nombre Completo</p>
-                <p className="font-bold text-foreground text-lg">{user.firstName} {user.lastName}</p>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Apellido</label>
+                <Input
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="h-14 rounded-2xl bg-muted border-none focus-visible:ring-2 focus-visible:ring-primary/20 text-lg font-bold"
+                />
               </div>
             </div>
 
-            <div className="flex items-center p-6 rounded-3xl bg-muted border-none group hover:bg-muted/80 transition-colors">
-              <div className="w-12 h-12 rounded-2xl bg-card flex items-center justify-center shadow-sm mr-4 group-hover:scale-110 transition-transform">
-                <Mail className="w-6 h-6 text-primary" />
+            <Button
+              className="w-full h-14 rounded-2xl font-black text-lg shadow-lg shadow-primary/20 gap-2"
+              onClick={() => updateProfile.mutate({ firstName, lastName, profileImageUrl })}
+              disabled={updateProfile.isPending}
+            >
+              {updateProfile.isPending ? "Guardando..." : (
+                <>
+                  <CheckCircle2 className="w-5 h-5" />
+                  Guardar Cambios
+                </>
+              )}
+            </Button>
+          </div>
+
+          <div className="w-full grid grid-cols-1 gap-3 mt-10 opacity-60">
+            <div className="flex items-center p-5 rounded-2xl bg-muted/50 border-none">
+              <div className="w-10 h-10 rounded-xl bg-card flex items-center justify-center shadow-sm mr-4">
+                <Mail className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-0.5">Email</p>
-                <p className="font-bold text-foreground text-lg">{user.email}</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-black mb-0.5">Email</p>
+                <p className="font-bold text-foreground">{user.email}</p>
               </div>
             </div>
 
-            <div className="flex items-center p-6 rounded-3xl bg-muted border-none group hover:bg-muted/80 transition-colors">
-              <div className="w-12 h-12 rounded-2xl bg-card flex items-center justify-center shadow-sm mr-4 group-hover:scale-110 transition-transform">
-                <Shield className="w-6 h-6 text-primary" />
+            <div className="flex items-center p-5 rounded-2xl bg-muted/50 border-none">
+              <div className="w-10 h-10 rounded-xl bg-card flex items-center justify-center shadow-sm mr-4">
+                <Shield className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-0.5">Tipo de Cuenta</p>
-                <p className="font-bold text-foreground text-lg">Plan Premium</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-black mb-0.5">Usuario</p>
+                <p className="font-bold text-foreground">@{user.username}</p>
               </div>
             </div>
           </div>
